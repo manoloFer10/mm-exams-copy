@@ -100,6 +100,6 @@ class Replier:
 
         return answer - 1 # For answer comparison between options['answer'] which is zero-indexed.
 
-    def _parse_options(options: list[str]):
+    def _parse_options(self, options: list[str]):
         parsed_options = "\n".join(f"{i + 1}) {option}" for i, option in enumerate(options))
         return parsed_options
