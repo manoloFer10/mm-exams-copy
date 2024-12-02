@@ -66,22 +66,9 @@ class Replier:
                         max_retries=2,
                     )
         if model == 'test':
-            test_model = 'mistralai/Mistral-7B-v0.1'
-            llm = HuggingFacePipeline.from_model_id(
-                model_id=test_model,
-                task="text-generation",
-                pipeline_kwargs=dict(
-                    max_new_tokens=512,
-                    do_sample=False,
-                    repetition_penalty=1.03,
-                    return_full_text=False,
-                )
-            )
-
-            replier = ChatHuggingFace(llm=llm)
             replier = ChatGroq(
                         model="llama-3.1-8b-instant",
-                        groq_api_key="GROQ_API_KEY",
+                        groq_api_key="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",
                         temperature=0,
                         max_tokens=None,
                         timeout=None,
