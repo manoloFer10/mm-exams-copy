@@ -1,0 +1,21 @@
+[
+    {
+        "language": "en",
+        "country": "United States",
+        "file_name": "pdf_name_in_database",
+        "source": "https://m.shsbnu.net/pluginfile.php/38738/mod_resource/content/1/%5B2018-Official-AP%20Practice%20Exam%5D%20%28With%20Answers%29.pdf",
+        "license": "Unknown",
+        "level": "University Entrance",
+        "category_en": "Chemistry",
+        "category_original_lang": "Chemistry",
+        "original_question_num": 1,
+        "question": "Which of the following particle diagrams best represents the products when four molecules of H2O2 (l) decompose into water and oxygen gas at room temperature?",
+        "options": ["optionA_png_file", "optionB_png_file", "optionC_text", "optionD_text"], 
+        "answer": 3, 
+        "image_png": "png_file" ,     
+        "image_information" : "useful",     
+        "image_type": "graph", 
+        "parallel_question_id": "None"
+    }
+]
+    
