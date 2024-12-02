@@ -74,7 +74,7 @@ class Replier:
                         timeout=None,
                         max_retries=2,
                     )
-        if model is not {'llama', 'chatgpt', 'claude', 'gemini', 'test'}:
+        if model not in {'llama', 'chatgpt', 'claude', 'gemini', 'test'}:
             raise ValueError('Model not implemented for answering DB.')
         
         return replier
