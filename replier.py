@@ -20,7 +20,7 @@ from langchain_core.output_parsers import StrOutputParser
 from transformers import AutoModelForVision2Seq, AutoProcessor
 import torch
 import modelWrapper as extras
-
+import warnings
 
 class Replier:
     def __init__(self, name:str):
@@ -80,7 +80,7 @@ class Replier:
                     )
         if model == 'qwen':
 
-            raise Warning('You are about to load a model locally.')
+            warnings.warn("Warning, you are about to load a model locally.")
 
             # Particular exception for Qwen (or any HuggingFace model) handling.
             qwen = AutoModelForVision2Seq.from_pretrained(
