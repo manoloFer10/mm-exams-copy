@@ -12,7 +12,7 @@
         "question": "How many apples fit in one hand, if the person has only capacity for 1 apple in each hand?",
         "options": ["1", "2", "3", "4"], 
         "answer": 0, 
-        "image_png": "png_file" ,     
+        "image_png": "None" ,     
         "image_information" : "useful",     
         "image_type": "graph", 
         "parallel_question_id": "None"
