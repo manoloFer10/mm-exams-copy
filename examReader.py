@@ -1,3 +1,8 @@
+'''
+A checkear qué hacemos con este script.
+'''
+
+
 # TODO: 
 #   - merge examLoader class with existing data storage (maybe huggingface datasets??).
 #   - add methods for handling exams by metadata (maybe for language, for difficulty...).
