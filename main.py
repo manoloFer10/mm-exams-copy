@@ -1,8 +1,12 @@
 import argparse
+import json
 import numpy as np
 from datasets import load_dataset
 import os
 import random
+from typing import List, Dict
+
+from model_utils import initialize_model, query_model
 
 
 def parse_args():
@@ -34,23 +38,39 @@ def parse_args():
     parser.add_argument(
         "api_key", type=str, default=None, help="explicitly give an api key"
     )
-
-    # add other testing parameters
-
+    parser.add_argument(
+        "--dataset", type=str, required=True, help="dataset name or path"
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Specify the model to use (e.g., qwen, llava)",
+    )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        default=None,
+        help="Path to the model checkpoint or name",
+    )
     args = parser.parse_args()
     return args
 
 
-def test_lang(args, lang, api_key):
+# Query Model for Predictions
+def query_model(model: str, prompts: List[str], api_key: str) -> List[str]:
+    """Query the specified model to get predictions."""
+    # TODO: Implement logic for querying the model (API or local inference)
+    return ["fake_answer"] * len(prompts)
 
-    model = args.model
+
+def test_lang(args, lang: str):
     setting = args.setting
 
-    output_folder = f"outputs/{setting}/mode_{model}/{lang}"
+    output_folder = f"outputs/{setting}/mode_{args.model}/{lang}"
     os.makdirs(output_folder, exist_ok=True)
 
     if setting == "few-shot":
-
         fewshot_samples = generate_fewshot_samples(lang)
     else:
         fewshot_samples = {}
@@ -59,15 +79,33 @@ def test_lang(args, lang, api_key):
     dataset = load_dataset(args.dataset)
     dataset = dataset.filter(lambda sample: sample["language"] == lang)
 
-    if args.max_test_samples != "all":
-        max_test_samples = int(args.max_test_samples)
+    if args.num_samples != "all":
+        max_test_samples = int(args.num_samples)
         dataset = dataset.select(range(max_test_samples))
 
     # generate prompts
-    all_prompts = []
-    for question in dataset:
-        prompt = generate_prompt(lang, setting, model, question, fewshot_samples)
-        all_prompts.append(prompt)
+    all_prompts = [
+        generate_prompt(lang, args.setting, args.model, question, fewshot_samples)
+        for question in dataset
+    ]
+
+    # initialize and query
+    if args.model in ["qwen", "llava"]:
+        if args.model == "qwen":
+            model, tokenizer = initialize_model("qwen", args.model_path)
+            predictions = query_model("qwen", model, tokenizer, all_prompts)
+        elif args.model == "llava":
+            model, tokenizer, image_processor = initialize_model(
+                "llava", args.model_path
+            )
+    elif args.model == "chatgpt":
+        model, tokenizer, image_processor = None, None, None
+    else:
+        raise ValueError(f"Unsuported model: {args.model}")
+
+    # Save Results
+    save_results(output_folder, dataset, predictions, all_prompts)
+    print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
 
 def generate_one_example(question, lang):
@@ -82,23 +120,39 @@ def generate_one_example(question, lang):
     return prompt
 
 
-def generate_fewshot_samples():
-    pass
+def generate_fewshot_samples(lang):
+    return {}
 
 
-def generate_prompt(lang, setting, model, question, fewshot_samples):
+def generate_prompt(
+    model: str,
+    lang: str,
+    setting: str,
+    question,
+    fewshot_samples=None,
+):
     # TODO: add all the languages
     if lang == "english":
         hint = f"The following is a multiple choice question about {question['category_original_lang']}."
     else:
-        raise NotImplemented
+        raise NotImplementedError(f"Language {lang} is not supported.")
 
     # TODO: add chat models and languages
     if setting == "zero-shot":
         if lang == "english":
-            hint += "Please only give the correct option, without nay other details or explanations."
+            hint += "Please only give the correct option, without any other details or explanations."
         else:
             raise NotImplemented
+
+    # model-specific formatting
+    if model == "qwen":
+        image_placeholder = f"<img>{question['image']}</img>"
+        prompt = (
+            f"{image_placeholder}\n{hint}\nQuestion: {question['question']}\nOptions:\n"
+        )
+        for i, option in enumerate(question["options"]):
+            prompt += f"{chr(65+i)}. {option}\n"  # A, B, C, etc.
+        prompt += "Answer:"
 
     if setting == "zero-shot":
         prompt = hint + "\n\n" + generate_one_example(question, lang)
@@ -119,17 +173,39 @@ def generate_prompt(lang, setting, model, question, fewshot_samples):
     return prompt
 
 
+def save_results(
+    output_folder: str,
+    dataset,
+    predictions: List[str],
+    prompts: List[str],
+):
+    results = []
+    for data, pred, prompt in zip(dataset, predictions, prompts):
+        results.append(
+            {
+                "question": data["question"],
+                "options": data["options"],
+                "answer": data.get("answer"),
+                "prediction": pred,
+                "prompt": prompt,
+            }
+        )
+    output_path = os.path.join(output_folder, "results.json")
+    with open(output_path, "w") as f:
+        json.dump(results, f, indent=2)
+
+
 def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
 
     # select test parameters
-    all_langs = []
+    all_langs = ["english"]
     selected_langs = eval(args.selected_langs) if args.selected_langs else all_langs
 
     # read api key
     api_key = args.api_key
 
     for lang in selected_langs:
-        test_lang(args, lang, api_key)
+        test_lang(args, lang)
