@@ -57,13 +57,6 @@ def parse_args():
     return args
 
 
-# Query Model for Predictions
-def query_model(model: str, prompts: List[str], api_key: str) -> List[str]:
-    """Query the specified model to get predictions."""
-    # TODO: Implement logic for querying the model (API or local inference)
-    return ["fake_answer"] * len(prompts)
-
-
 def test_lang(args, lang: str):
     setting = args.setting
 
@@ -137,38 +130,20 @@ def generate_prompt(
     else:
         raise NotImplementedError(f"Language {lang} is not supported.")
 
-    # TODO: add chat models and languages
+    # TODO: add models, languages and few-shot
     if setting == "zero-shot":
         if lang == "english":
-            hint += "Please only give the correct option, without any other details or explanations."
+            hint += "\nPlease only give the correct option, without any other details or explanations."
         else:
             raise NotImplemented
 
+    prompt = "{}\n<img>{}</img>Context: {}\nQuestion: {}\nOptions: {}\nAnswer:"
     # model-specific formatting
     if model == "qwen":
-        image_placeholder = f"<img>{question['image']}</img>"
-        prompt = (
-            f"{image_placeholder}\n{hint}\nQuestion: {question['question']}\nOptions:\n"
-        )
-        for i, option in enumerate(question["options"]):
-            prompt += f"{chr(65+i)}. {option}\n"  # A, B, C, etc.
-        prompt += "Answer:"
-
-    if setting == "zero-shot":
-        prompt = hint + "\n\n" + generate_one_example(question, lang)
-    elif setting == "few-shot":
-        dev_questions_list = fewshot_samples[question["level"]][
-            question["subject_category"]
-        ]
-        prompt = (
-            hint
-            + "\n\n"
-            + "\n\n".join(dev_questions_list)
-            + "\n\n"
-            + generate_one_example(question, lang)
-        )
-    else:
-        raise NotImplementedError
+        image = f"<img>{question['image']}</img>"
+        question = question["question"]
+        options = "\n".join(question["options"])
+        prompt = prompt.format(hint, image, question, options)
 
     return prompt
 
