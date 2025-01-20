@@ -7,7 +7,9 @@ max_tokens = 1  # Only output the option chosen.
 
 SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya"]
 
+# !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
+
 
 
 def initialize_model(model_name: str, model_path: str, device: str = "cuda"):
@@ -16,7 +18,8 @@ def initialize_model(model_name: str, model_path: str, device: str = "cuda"):
         tokenizer = AutoTokenizer.from_pretrained(model_path)
     return model.eval(), tokenizer
 
-
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Already in predict_answers, see predict_{model}
 def query_model(
     model_name,
     model,
@@ -24,7 +27,7 @@ def query_model(
     prompts,
     images=None,
     image_processor=None,
-    device="cuda",
+    device="cuda"
 ):
     if model_name == "qwen":
         return query_qwen(model, tokenizer, prompts, device)
@@ -43,6 +46,9 @@ def query_qwen(model, tokenizer, prompts: list, device="cuda"):
 
 
 def parse_openai_input(question_text, question_image, options_list):
+
+    #TODO: add a few_shot boolean to process few shot examples.
+
     def encode_image(image_path):
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
@@ -143,12 +149,12 @@ def parse_qwen_input(question_text, question_image, options_list):
                 new_text_option
             )  # Puts the option text if it isn't an image.
 
-        prompt_text = [question] + parsed_options
+    prompt_text = [question] + parsed_options
 
-        if question_image:
-            image_paths = [question_image] + image_paths
+    if question_image:
+        image_paths = [question_image] + image_paths
 
-        return prompt_text, images_paths
+    return prompt_text, images_paths
 
 
 def format_answer(answer: str):
@@ -170,3 +176,7 @@ def format_answer(answer: str):
         raise ValueError(
             f"Invalid answer: '{answer}'. Must be a letter (A-Z) or a digit (1-9)."
         )
+
+def fetch_few_shot_examples(lang):
+    # TODO: write function.
+    raise NotImplementedError('The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language.')
