@@ -1,12 +1,14 @@
 import argparse
 import json
+import pandas as pd
 import numpy as np
 from datasets import load_dataset
 import os
 import random
 from typing import List, Dict
+from predict_answers import run_answer_prediction
 
-from model_utils import initialize_model, query_model
+from model_utils import initialize_model, query_model, SUPPORTED_MODELS
 
 
 def parse_args():
@@ -45,7 +47,7 @@ def parse_args():
         "--model",
         type=str,
         required=True,
-        help="Specify the model to use (e.g., qwen, llava)",
+        help=f"Specify the model to use (must be one from the following: {', '.join(SUPPORTED_MODELS)})",
     )
     parser.add_argument(
         "--model_path",
@@ -57,7 +59,8 @@ def parse_args():
     return args
 
 
-def test_lang(args, lang: str):
+def test_lang(args, lang: str): # Manu: already done by run_answer_prediction
+    # TODO: needs refactor to fit model_predict calls
     setting = args.setting
 
     output_folder = f"outputs/{setting}/mode_{args.model}/{lang}"
@@ -100,7 +103,9 @@ def test_lang(args, lang: str):
     save_results(output_folder, dataset, predictions, all_prompts)
     print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
-
+# Manu:
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# When is this used?
 def generate_one_example(question, lang):
     # TODO: add other languages and methods - check images as answers
     answer_word = {"english": "Answer:"}
@@ -116,7 +121,9 @@ def generate_one_example(question, lang):
 def generate_fewshot_samples(lang):
     return {}
 
-
+# Manu:
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Ya tenemos esto, en parse_{model}_input
 def generate_prompt(
     model: str,
     lang: str,
@@ -124,13 +131,14 @@ def generate_prompt(
     question,
     fewshot_samples=None,
 ):
-    # TODO: add all the languages
+    # TODO: add all the languages. 
+    #       Manu: qué onda con la hint?? Me genera dudas
     if lang == "english":
         hint = f"The following is a multiple choice question about {question['category_original_lang']}."
     else:
         raise NotImplementedError(f"Language {lang} is not supported.")
 
-    # TODO: add models, languages and few-shot
+    # TODO: add models, languages and few-shot. 
     if setting == "zero-shot":
         if lang == "english":
             hint += "\nPlease only give the correct option, without any other details or explanations."
@@ -150,37 +158,42 @@ def generate_prompt(
 
 def save_results(
     output_folder: str,
-    dataset,
-    predictions: List[str],
-    prompts: List[str],
+    results: Dict
 ):
-    results = []
-    for data, pred, prompt in zip(dataset, predictions, prompts):
-        results.append(
-            {
-                "question": data["question"],
-                "options": data["options"],
-                "answer": data.get("answer"),
-                "prediction": pred,
-                "prompt": prompt,
-            }
-        )
     output_path = os.path.join(output_folder, "results.json")
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+    df = pd.read_json(results)
+    df.to_csv(output_path, index=False)
 
 
 def main():
+    #TODO: pending finish
+    # Manu: levantar el dataset desde args y correr run_evaluation con las config de args.
+
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    # select test parameters
-    all_langs = ["english"]
-    selected_langs = eval(args.selected_langs) if args.selected_langs else all_langs
+    # select test parameters 
+    #       Manu: Para mí hay que hacer distinto esto: cargar directo el dataset entero y hacer 
+    #       la evaluación sobre tooodas las preguntas. Después filtramos por lenguaje en eval.py .
+    # all_langs = ["english"]
+    # selected_langs = eval(args.selected_langs) if args.selected_langs else all_langs
 
-    # read api key
-    api_key = args.api_key
+    # # read api key
+    # api_key = args.api_key
 
-    for lang in selected_langs:
-        test_lang(args, lang)
+    # for lang in selected_langs:
+    #     test_lang(args, lang)
+
+    # Load dataset.
+    dataset = load_dataset(args.dataset)
+
+    # Run evaluation.
+    results = run_answer_prediction(args.model, dataset, args.api_key)
+
+    # Save csv results in results folder.
+    output_folder = 'results'
+    save_results(output_folder, results)
+    print(f"Evaluation completed. Results saved to {output_folder}")
+
+
