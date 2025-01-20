@@ -14,9 +14,10 @@
 from openai import OpenAI
 from transformers import AutoModelForVision2Seq, AutoProcessor
 from model_utils import (
-    parse_qwen_inputs,
+    parse_qwen_input,
     parse_openai_input,
     format_answer,
+    fetch_few_shot_examples,
     temperature,
     max_tokens,
     SYSTEM_MESSAGE,
@@ -24,23 +25,21 @@ from model_utils import (
 )
 import torch
 from typing import Dict, List
-import os
-import json
-import base64
 import warnings
 from PIL import Image
+from tqdm import tqdm
 
 
 def predict_gpt4(
     client,
     json_schema: Dict,
     system_message: List[Dict[str, str]],
+    lang: str,
     model: str = "gpt-4o",
-    max_tokens: int = 128,
-    temperature: float = 0,
+    few_shot_setting = None
 ):
     """
-    ZERO-SHOT
+    Defaults to ZERO-SHOT.
     Returns: The predicted option by the model.
     """
 
@@ -49,22 +48,32 @@ def predict_gpt4(
     options_list = json_schema["options"]
 
     question, parsed_options = parse_openai_input(
-        question, question_image, options_list
+        question_text, question_image, options_list
     )
 
-    question_text_message = {"role": "user", "content": question + parsed_options}
+    prompt_chat_dict = {"role": "user", "content": question + parsed_options}
 
-    messages = [system_message, question_text_message]
+    # Enable few-shot setting
+    if few_shot_setting:
+        messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
+    else:
+        messages = [system_message, prompt_chat_dict]
 
     response = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, max_tokens=max_tokens
     )
     output_text = response.choices[0].message.content.strip()
 
-    return output_text
+    return format_answer(output_text)
 
 
-def predict_qwen(qwen, processor, json_schema, system_message):
+def predict_qwen(
+    qwen,
+    processor, 
+    json_schema: Dict,
+    system_message: List[Dict[str, str]],
+    lang: str,
+    few_shot_setting = None):
     """
     ZERO-SHOT
     Returns: The predicted option by the model.
@@ -74,12 +83,19 @@ def predict_qwen(qwen, processor, json_schema, system_message):
     question_image = json_schema["image_png"]
     options_list = json_schema["options"]
 
-    prompt_dict, image_paths = parse_qwen_inputs(question, question_image, options_list)
+    prompt_chat_dict, image_paths = parse_qwen_input(question, question_image, options_list)
 
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
+    # Enable few-shot setting
+    if few_shot_setting:
+        messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
+    else:
+        messages = [system_message, prompt_chat_dict]
+
+
     inputs = processor(
-        text=prompt_dict,  # This will still align images with text
+        text=messages,  # This will still align images with text
         images=images,
         return_tensors="pt",
         padding=True,
@@ -95,31 +111,26 @@ def predict_qwen(qwen, processor, json_schema, system_message):
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
-    return response[0]
+    return format_answer(response[0])
 
 
-def run_answer_prediction(model: str, data_path: str, API_KEY: str):
+def run_answer_prediction(model: str, dataset, API_KEY: str):
     """
     Returns: JSON object with predictions made by the model.
     """
-    if not os.path.exists(data_path):
-        raise FileNotFoundError(
-            f"Invalid path for running model prediction: {data_path}"
-        )
 
-    with open(data_path, "r") as f:
-        test_questions = json.load(f)
+    results = []
 
     system_message = [{"role": "system", "content": SYSTEM_MESSAGE}]
 
     if model not in SUPPORTED_MODELS:
         raise NotImplementedError(
-            f"Model {model} not implemented for prediction in this code."
+            f"Model {model} not currently implemented for prediction."
         )
 
     if model == "gpt-4o":
         client = OpenAI(api_key=API_KEY)
-        for question_json in test_questions:
+        for question_json in tqdm(dataset):
             prediction = predict_gpt4(
                 client,
                 question_json,
@@ -128,31 +139,35 @@ def run_answer_prediction(model: str, data_path: str, API_KEY: str):
                 max_tokens=max_tokens,
             )
             question_json["prediction_by_" + model] = prediction
+            # question_json['prompt_used'] = prompt
+            result_metadata = question_json.copy()
+            results.append(result_metadata) 
 
     if model == "maya":
-        raise NotImplementedError
+        raise NotImplementedError(f'Model: {model} not currently implemented for prediction.')
 
     if model == "qwen":
         warnings.warn("Warning, you are about to load a model locally.")
 
+        model_name= "Qwen/Qwen2-VL-7B-Instruct" # TODO: Set actual Qwen2 model.
+
         qwen = AutoModelForVision2Seq.from_pretrained(
-            "Qwen/Qwen2-VL-7B-Instruct",
+            model_name,
             torch_dtype=torch.float16,
             attn_implementation="flash_attention_2",
             device_map="auto",
             temperature=temperature,
             max_new_tokens=max_tokens,
         )
-        qwen_processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+        qwen_processor = AutoProcessor.from_pretrained(model_name)
 
-        for question_json in test_questions:
+        for question_json in tqdm(dataset):
             prediction = predict_qwen(
                 qwen, qwen_processor, question_json, system_message
             )
             question_json["prediction_by_" + model] = prediction
+            result_metadata = question_json.copy()
+            results.append(result_metadata) 
 
-    # Returns the json object with the field 'prediction by:'
-    return question_json
-
-
-# Queda hacer la lógica de lectura de los datasets.
+    # Returns the json object with the field 'prediction'
+    return results
