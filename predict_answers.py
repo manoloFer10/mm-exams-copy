@@ -30,13 +30,15 @@ from PIL import Image
 from tqdm import tqdm
 
 
-def predict_gpt4(
+def predict_openAI(
     client,
     json_schema: Dict,
     system_message: List[Dict[str, str]],
     lang: str,
-    model: str = "gpt-4o",
-    few_shot_setting = None
+    model: str,
+    few_shot_setting: str,
+    temperature: int,
+    max_tokens: int
 ):
     """
     Defaults to ZERO-SHOT.
@@ -54,9 +56,9 @@ def predict_gpt4(
     prompt_chat_dict = {"role": "user", "content": question + parsed_options}
 
     # Enable few-shot setting
-    if few_shot_setting:
+    if few_shot_setting == 'few-shot':
         messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
-    else:
+    if few_shot_setting == 'zero-shot':
         messages = [system_message, prompt_chat_dict]
 
     response = client.chat.completions.create(
@@ -73,7 +75,8 @@ def predict_qwen(
     json_schema: Dict,
     system_message: List[Dict[str, str]],
     lang: str,
-    few_shot_setting = None):
+    few_shot_setting: str
+):
     """
     ZERO-SHOT
     Returns: The predicted option by the model.
@@ -88,9 +91,9 @@ def predict_qwen(
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
     # Enable few-shot setting
-    if few_shot_setting:
+    if few_shot_setting == 'few-shot':
         messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
-    else:
+    if few_shot_setting == 'zero-shot':
         messages = [system_message, prompt_chat_dict]
 
 
@@ -114,10 +117,14 @@ def predict_qwen(
     return format_answer(response[0])
 
 
-def run_answer_prediction(model: str, dataset, API_KEY: str):
+def run_answer_prediction(dataset, args):
     """
     Returns: JSON object with predictions made by the model.
     """
+    model = args.model
+    API_KEY = args.api_key
+    few_shot_setting = args.setting 
+    lang = args.selected_langs[0] # Change later
 
     results = []
 
@@ -131,13 +138,40 @@ def run_answer_prediction(model: str, dataset, API_KEY: str):
     if model == "gpt-4o":
         client = OpenAI(api_key=API_KEY)
         for question_json in tqdm(dataset):
-            prediction = predict_gpt4(
+            prediction = predict_openAI(
                 client,
                 question_json,
                 system_message,
+                lang, 
+                model = 'gpt-4o',
+                few_shot_setting = few_shot_setting,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
+
+            question_json["prediction_by_" + model] = prediction
+            # question_json['prompt_used'] = prompt
+            result_metadata = question_json.copy()
+            results.append(result_metadata) 
+
+    if model == 'llama':
+        client = OpenAI(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=API_KEY
+        )
+
+        for question_json in tqdm(dataset):
+            prediction = predict_openAI(
+                client,
+                question_json,
+                system_message,
+                lang, 
+                model = 'llama-3.2-90b-vision-preview',
+                few_shot_setting = few_shot_setting,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
             question_json["prediction_by_" + model] = prediction
             # question_json['prompt_used'] = prompt
             result_metadata = question_json.copy()
@@ -163,8 +197,14 @@ def run_answer_prediction(model: str, dataset, API_KEY: str):
 
         for question_json in tqdm(dataset):
             prediction = predict_qwen(
-                qwen, qwen_processor, question_json, system_message
+                qwen, 
+                qwen_processor, 
+                question_json, 
+                system_message,
+                lang,
+                few_shot_setting
             )
+
             question_json["prediction_by_" + model] = prediction
             result_metadata = question_json.copy()
             results.append(result_metadata) 
