@@ -5,7 +5,7 @@ from transformers import Qwen2VLForConditionalGeneration, AutoTokenizer, AutoPro
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya"]
+SUPPORTED_MODELS = ['gpt-4o', 'qwen', 'maya', 'llama']
 
 # !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
@@ -73,11 +73,11 @@ def query_qwen(model, tokenizer, prompts: list, device="cuda"):
 
 def parse_openai_input(question_text, question_image, options_list):
 
-    # TODO: add a few_shot boolean to process few shot examples.
-
-    def encode_image(image_path):
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
+    def encode_image(image):
+        try:
+            return base64.b64encode(image).decode("utf-8")
+        except Exception as e:
+            raise TypeError(f'Image {image} could not be encoded. {e}')
 
     question = [{"type": "text", "text": question_text}]
 
