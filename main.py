@@ -1,5 +1,5 @@
 import argparse
-import json
+import ast
 import pandas as pd
 import numpy as np
 from datasets import load_dataset
@@ -16,12 +16,12 @@ def parse_args():
     parser.add_argument(
         "--num_samples",
         type=str,
-        default="5",
+        default="3",
         help="number of samples to test",
     )
     parser.add_argument(
         "--setting",
-        type=int,
+        type=str,
         default="zero-shot",
         help="[few-shot, zero-shot]",
     )
@@ -33,12 +33,15 @@ def parse_args():
     )
     parser.add_argument(
         "--selected_langs",
-        type=str,
+        type=list,
         default=None,
         help="list of strings of languages",
     )
     parser.add_argument(
-        "api_key", type=str, default=None, help="explicitly give an api key"
+        "--api_key", 
+        type=str, 
+        default=None, 
+        help="explicitly give an api key"
     )
     parser.add_argument(
         "--dataset", type=str, required=True, help="dataset name or path"
@@ -103,57 +106,6 @@ def test_lang(args, lang: str): # Manu: already done by run_answer_prediction
     save_results(output_folder, dataset, predictions, all_prompts)
     print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
-# Manu:
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# When is this used?
-def generate_one_example(question, lang):
-    # TODO: add other languages and methods - check images as answers
-    answer_word = {"english": "Answer:"}
-    prompt = (
-        question["question"]
-        + "\n"
-        + "\n".join(question["options"])
-        + f"\n{answer_word}"
-    )
-    return prompt
-
-
-def generate_fewshot_samples(lang):
-    return {}
-
-# Manu:
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Ya tenemos esto, en parse_{model}_input
-def generate_prompt(
-    model: str,
-    lang: str,
-    setting: str,
-    question,
-    fewshot_samples=None,
-):
-    # TODO: add all the languages. 
-    #       Manu: qué onda con la hint?? Me genera dudas
-    if lang == "english":
-        hint = f"The following is a multiple choice question about {question['category_original_lang']}."
-    else:
-        raise NotImplementedError(f"Language {lang} is not supported.")
-
-    # TODO: add models, languages and few-shot. 
-    if setting == "zero-shot":
-        if lang == "english":
-            hint += "\nPlease only give the correct option, without any other details or explanations."
-        else:
-            raise NotImplemented
-
-    prompt = "{}\n<img>{}</img>Context: {}\nQuestion: {}\nOptions: {}\nAnswer:"
-    # model-specific formatting
-    if model == "qwen":
-        image = f"<img>{question['image']}</img>"
-        question = question["question"]
-        options = "\n".join(question["options"])
-        prompt = prompt.format(hint, image, question, options)
-
-    return prompt
 
 
 def save_results(
@@ -173,27 +125,20 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    # select test parameters 
-    #       Manu: Para mí hay que hacer distinto esto: cargar directo el dataset entero y hacer 
-    #       la evaluación sobre tooodas las preguntas. Después filtramos por lenguaje en eval.py .
-    # all_langs = ["english"]
-    # selected_langs = eval(args.selected_langs) if args.selected_langs else all_langs
-
-    # # read api key
-    # api_key = args.api_key
-
-    # for lang in selected_langs:
-    #     test_lang(args, lang)
-
     # Load dataset.
-    dataset = load_dataset(args.dataset)
+    if args.num_samples == 'all':
+        dataset = load_dataset(args.dataset)['train']
+    else: 
+        dataset = load_dataset(args.dataset)['train'].select(range(int(args.num_samples)))
 
     # Run evaluation.
-    results = run_answer_prediction(args.model, dataset, args.api_key)
+    results = run_answer_prediction(dataset, args)
 
-    # Save csv results in results folder.
+    # Save csv results in 'results' folder.
     output_folder = 'results'
     save_results(output_folder, results)
     print(f"Evaluation completed. Results saved to {output_folder}")
 
 
+if __name__ == '__main__':
+    main()
