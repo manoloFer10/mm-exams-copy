@@ -1,6 +1,6 @@
 import base64
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import Qwen2VLForConditionalGeneration, AutoTokenizer, AutoProcessor
 
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
@@ -11,26 +11,52 @@ SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya"]
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
 
 
-
-def initialize_model(model_name: str, model_path: str, device: str = "cuda"):
-    if model_name == "qwen":
-        model = AutoModelForCausalLM.from_pretrained(model_path, device_map=device)
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-    return model.eval(), tokenizer
-
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Already in predict_answers, see predict_{model}
-def query_model(
-    model_name,
-    model,
-    tokenizer,
-    prompts,
-    images=None,
-    image_processor=None,
-    device="cuda"
+def initialize_model(
+    model_name: str, model_path: str, api_key: str = None, device: str = "cuda"
 ):
+    """
+    Initialize the model and processor/tokenizer based on the model name.
+    """
     if model_name == "qwen":
-        return query_qwen(model, tokenizer, prompts, device)
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_path,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
+        )
+        processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+
+    elif model_name == "pangea":
+        # Add Pangea initialization logic
+        raise NotImplementedError(f"Model: {model_name} not available yet")
+    elif model_name == "molmo":
+        # Add Molmo initialization logic
+        raise NotImplementedError(f"Model: {model_name} not available yet")
+    elif model_name == "gpt-4o":
+        # Add gpt initialization logic
+        raise NotImplementedError(f"Model: {model_name} not available yet")
+    else:
+        raise ValueError(f"Unsupported model: {model_name}")
+    return model, processor
+
+
+def query_model(
+    model_name: str, model, processor, prompts: list, images=None, device: str = "cuda"
+):
+    """
+    Query the model based on the model name.
+    """
+    if model_name == "qwen":
+        return query_qwen(model, processor, prompts, device)
+    elif model_name == "pangea":
+        # Add pangea querying logic
+        pass
+    elif model_name == "molmo":
+        # Add molmo querying logic
+        pass
+    elif model_name == "gpt-4o":
+        # Add gpt querying logic
+        pass
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -47,7 +73,7 @@ def query_qwen(model, tokenizer, prompts: list, device="cuda"):
 
 def parse_openai_input(question_text, question_image, options_list):
 
-    #TODO: add a few_shot boolean to process few shot examples.
+    # TODO: add a few_shot boolean to process few shot examples.
 
     def encode_image(image_path):
         with open(image_path, "rb") as image_file:
@@ -177,6 +203,9 @@ def format_answer(answer: str):
             f"Invalid answer: '{answer}'. Must be a letter (A-Z) or a digit (1-9)."
         )
 
+
 def fetch_few_shot_examples(lang):
     # TODO: write function.
-    raise NotImplementedError('The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language.')
+    raise NotImplementedError(
+        "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
+    )
