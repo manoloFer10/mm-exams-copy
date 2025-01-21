@@ -7,8 +7,15 @@ import os
 import random
 from typing import List, Dict
 from predict_answers import run_answer_prediction
+import json
 
-from model_utils import initialize_model, query_model, format_answer, SUPPORTED_MODELS
+from model_utils import (
+    initialize_model,
+    query_model,
+    format_answer,
+    SUPPORTED_MODELS,
+    generate_prompt,
+)
 
 
 def parse_args():
@@ -38,10 +45,7 @@ def parse_args():
         help="list of strings of languages",
     )
     parser.add_argument(
-        "--api_key", 
-        type=str, 
-        default=None, 
-        help="explicitly give an api key"
+        "--api_key", type=str, default=None, help="explicitly give an api key"
     )
     parser.add_argument(
         "--dataset", type=str, required=True, help="dataset name or path"
@@ -162,7 +166,6 @@ def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
     print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
 
-
 def save_results(output_folder: str, results: Dict):
     output_path = os.path.join(output_folder, "results.json")
     df = pd.read_json(results)
@@ -170,27 +173,12 @@ def save_results(output_folder: str, results: Dict):
 
 
 def main():
-    # TODO: pending finish
-    # Manu: levantar el dataset desde args y correr run_evaluation con las config de args.
-
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    # Load dataset.
-    if args.num_samples == 'all':
-        dataset = load_dataset(args.dataset)['train']
-    else: 
-        dataset = load_dataset(args.dataset)['train'].select(range(int(args.num_samples)))
-
-    # Run evaluation.
-    results = run_answer_prediction(dataset, args)
-
-    # Save csv results in 'results' folder.
-    output_folder = 'results'
-    save_results(output_folder, results)
-    print(f"Evaluation completed. Results saved to {output_folder}")
+    evaluate_model(args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
