@@ -8,7 +8,7 @@ import random
 from typing import List, Dict
 from predict_answers import run_answer_prediction
 
-from model_utils import initialize_model, query_model, SUPPORTED_MODELS
+from model_utils import initialize_model, query_model, format_answer, SUPPORTED_MODELS
 
 
 def parse_args():
@@ -59,7 +59,62 @@ def parse_args():
     return args
 
 
-def test_lang(args, lang: str): # Manu: already done by run_answer_prediction
+def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
+    """
+    Load and filter the dataset based on language and number of samples.
+    """
+    dataset = load_dataset(dataset_name)
+    dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    if num_samples != "all":
+        dataset = dataset.select(range(int(num_samples)))
+    return dataset
+
+
+def evaluate_model(args):
+    """
+    Run the evaluation pipeline for the specified model.
+    """
+    # Initialize model
+    model, processor = initialize_model(args.model, args.model_path, args.api_key)
+
+    # Load dataset
+    dataset = load_and_filter_dataset(
+        args.dataset, args.selected_langs, args.num_samples
+    )
+
+    # Evaluate each question
+    results = []
+    for question in dataset:
+        # Generate prompt
+        prompt, images = generate_prompt(args.model, question)
+        # Query model
+        prediction = query_model(args.model, model, processor, [prompt], images)
+
+        # Format answer
+        formatted_prediction = format_answer(prediction[0])
+
+        # Save results
+        results.append(
+            {
+                "question": question["question"],
+                "options": question["options"],
+                "answer": question.get("answer"),
+                "prediction": formatted_prediction,
+                "prompt": prompt,
+            }
+        )
+
+    # Save results to file
+    output_folder = f"outputs/{args.setting}/mode_{args.model}"
+    os.makedirs(output_folder, exist_ok=True)
+    output_path = os.path.join(output_folder, "results.json")
+    with open(output_path, "w") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"Evaluation completed. Results saved to {output_path}")
+
+
+def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
     # TODO: needs refactor to fit model_predict calls
     setting = args.setting
 
@@ -103,27 +158,7 @@ def test_lang(args, lang: str): # Manu: already done by run_answer_prediction
     save_results(output_folder, dataset, predictions, all_prompts)
     print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
-# Manu:
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# When is this used?
-def generate_one_example(question, lang):
-    # TODO: add other languages and methods - check images as answers
-    answer_word = {"english": "Answer:"}
-    prompt = (
-        question["question"]
-        + "\n"
-        + "\n".join(question["options"])
-        + f"\n{answer_word}"
-    )
-    return prompt
 
-
-def generate_fewshot_samples(lang):
-    return {}
-
-# Manu:
-#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Ya tenemos esto, en parse_{model}_input
 def generate_prompt(
     model: str,
     lang: str,
@@ -131,14 +166,14 @@ def generate_prompt(
     question,
     fewshot_samples=None,
 ):
-    # TODO: add all the languages. 
+    # TODO: add all the languages.
     #       Manu: qué onda con la hint?? Me genera dudas
     if lang == "english":
         hint = f"The following is a multiple choice question about {question['category_original_lang']}."
     else:
         raise NotImplementedError(f"Language {lang} is not supported.")
 
-    # TODO: add models, languages and few-shot. 
+    # TODO: add models, languages and few-shot.
     if setting == "zero-shot":
         if lang == "english":
             hint += "\nPlease only give the correct option, without any other details or explanations."
@@ -156,25 +191,22 @@ def generate_prompt(
     return prompt
 
 
-def save_results(
-    output_folder: str,
-    results: Dict
-):
+def save_results(output_folder: str, results: Dict):
     output_path = os.path.join(output_folder, "results.json")
     df = pd.read_json(results)
     df.to_csv(output_path, index=False)
 
 
 def main():
-    #TODO: pending finish
+    # TODO: pending finish
     # Manu: levantar el dataset desde args y correr run_evaluation con las config de args.
 
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    # select test parameters 
-    #       Manu: Para mí hay que hacer distinto esto: cargar directo el dataset entero y hacer 
+    # select test parameters
+    #       Manu: Para mí hay que hacer distinto esto: cargar directo el dataset entero y hacer
     #       la evaluación sobre tooodas las preguntas. Después filtramos por lenguaje en eval.py .
     # all_langs = ["english"]
     # selected_langs = eval(args.selected_langs) if args.selected_langs else all_langs
@@ -192,8 +224,11 @@ def main():
     results = run_answer_prediction(args.model, dataset, args.api_key)
 
     # Save csv results in results folder.
-    output_folder = 'results'
+    output_folder = "results"
     save_results(output_folder, results)
     print(f"Evaluation completed. Results saved to {output_folder}")
 
 
+if __name__ == "__main__":
+    args = parse_args()
+    evaluate_model(args)
