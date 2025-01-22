@@ -1,8 +1,8 @@
-import argparse
 import ast
+import argparse
 import pandas as pd
 import numpy as np
-from datasets import load_dataset
+from datasets import load_from_disk
 import os
 import random
 from typing import List, Dict
@@ -71,7 +71,7 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     Load and filter the dataset based on language and number of samples.
     """
     # TODO: ADD OTHER FILTERS
-    dataset = load_dataset(dataset_name)
+    dataset = load_from_disk(dataset_name)
     dataset = dataset.filter(lambda sample: sample["language"] == lang)
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
@@ -135,7 +135,7 @@ def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
         fewshot_samples = {}
 
     # load dataset
-    dataset = load_dataset(args.dataset)
+    dataset = load_from_disk(args.dataset)
     dataset = dataset.filter(lambda sample: sample["language"] == lang)
 
     if args.num_samples != "all":
