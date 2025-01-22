@@ -99,18 +99,12 @@ def evaluate_model(args):
         prediction = query_model(args.model, model, processor, prompt, images)
 
         # Format answer
-        formatted_prediction = format_answer(prediction[0])
+        formatted_prediction = format_answer(prediction)
 
-        # Save results
-        results.append(
-            {
-                "question": question["question"],
-                "options": question["options"],
-                "answer": question.get("answer"),
-                "prediction": formatted_prediction,
-                "prompt": prompt,
-            }
-        )
+        question["prediction_by_" + model] = formatted_prediction
+        # question_json['prompt_used'] = prompt
+        result_metadata = question.copy()
+        results.append(result_metadata)
 
     # Save results to file
     output_folder = f"outputs/{args.setting}/mode_{args.model}"
