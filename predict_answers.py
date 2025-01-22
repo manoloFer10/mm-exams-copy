@@ -137,6 +137,7 @@ def run_answer_prediction(dataset, args):
         )
 
     if model == "gpt-4o":
+        # move to initilize_model/query_gpt4o
         client = OpenAI(api_key=API_KEY)
         for question_json in tqdm(dataset):
             prediction = predict_openAI(
@@ -206,6 +207,7 @@ def run_answer_prediction(dataset, args):
             )
 
             question_json["prediction_by_" + model] = prediction
+            # move to eval_model
             result_metadata = question_json.copy()
             results.append(result_metadata)
 
