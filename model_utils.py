@@ -2,6 +2,7 @@ import base64
 import torch
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
+from PIL import Image
 
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
@@ -144,13 +145,16 @@ def parse_openai_input(question_text, question_image, options_list):
     return question, parsed_options
 
 
-def parse_qwen_intpu(question_text, question_image, options_list):
+def parse_qwen_input(question_text, question_image, options_list):
     content = []
     hint = f"The following is a multiple choice question."  # add subject
     hint += " Please only give the correct option, without any other details or explanations."
     content.append({"type": "text", "text": hint})
     if question_image is not None:
-        content.append({"type": "image", "image": question_image})
+        content.append({"type": "image"})
+        images = [Image.open(question_image)]
+    else:
+        images = None
     question_message = question_text
     # ignore images on answers for now <- this would be an extra evaluation
     formatted_options = []
@@ -164,7 +168,7 @@ def parse_qwen_intpu(question_text, question_image, options_list):
     # Create the messages list
     messages = [{"role": "user", "content": content}]
 
-    return messages
+    return messages, images
 
 
 def parse_qwen_input_(question_text, question_image, options_list):
