@@ -77,93 +77,93 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     return dataset
 
 
-def evaluate_model(args):
-    """
-    Run the evaluation pipeline for the specified model.
-    """
-    # Initialize model
-    model, processor = initialize_model(args.model, args.model_path, args.api_key)
+# def evaluate_model(args):
+#     """
+#     Run the evaluation pipeline for the specified model.
+#     """
+#     # Initialize model
+#     model, processor = initialize_model(args.model, args.model_path, args.api_key)
 
-    # Load dataset
-    dataset = load_and_filter_dataset(
-        args.dataset, args.selected_langs, args.num_samples
-    )
+#     # Load dataset
+#     dataset = load_and_filter_dataset(
+#         args.dataset, args.selected_langs, args.num_samples
+#     )
 
-    # Evaluate each question
-    results = []
-    for question in dataset:
-        # Generate prompt
-        prompt, images = generate_prompt(args.model, question)
-        # Query model
-        prediction = query_model(args.model, model, processor, [prompt], images)
+#     # Evaluate each question
+#     results = []
+#     for question in dataset:
+#         # Generate prompt
+#         prompt, images = generate_prompt(args.model, question)
+#         # Query model
+#         prediction = query_model(args.model, model, processor, [prompt], images)
 
-        # Format answer
-        formatted_prediction = format_answer(prediction[0])
+#         # Format answer
+#         formatted_prediction = format_answer(prediction[0])
 
-        # Save results
-        results.append(
-            {
-                "question": question["question"],
-                "options": question["options"],
-                "answer": question.get("answer"),
-                "prediction": formatted_prediction,
-                "prompt": prompt,
-            }
-        )
+#         # Save results
+#         results.append(
+#             {
+#                 "question": question["question"],
+#                 "options": question["options"],
+#                 "answer": question.get("answer"),
+#                 "prediction": formatted_prediction,
+#                 "prompt": prompt,
+#             }
+#         )
 
-    # Save results to file
-    output_folder = f"outputs/{args.setting}/mode_{args.model}"
-    os.makedirs(output_folder, exist_ok=True)
-    output_path = os.path.join(output_folder, "results.json")
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+#     # Save results to file
+#     output_folder = f"outputs/{args.setting}/mode_{args.model}"
+#     os.makedirs(output_folder, exist_ok=True)
+#     output_path = os.path.join(output_folder, "results.json")
+#     with open(output_path, "w") as f:
+#         json.dump(results, f, indent=2)
 
-    print(f"Evaluation completed. Results saved to {output_path}")
+#     print(f"Evaluation completed. Results saved to {output_path}")
 
 
-def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
-    # TODO: needs refactor to fit model_predict calls
-    setting = args.setting
+# def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
+#     # TODO: needs refactor to fit model_predict calls
+#     setting = args.setting
 
-    output_folder = f"outputs/{setting}/mode_{args.model}/{lang}"
-    os.makdirs(output_folder, exist_ok=True)
+#     output_folder = f"outputs/{setting}/mode_{args.model}/{lang}"
+#     os.makdirs(output_folder, exist_ok=True)
 
-    if setting == "few-shot":
-        fewshot_samples = generate_fewshot_samples(lang)
-    else:
-        fewshot_samples = {}
+#     if setting == "few-shot":
+#         fewshot_samples = generate_fewshot_samples(lang)
+#     else:
+#         fewshot_samples = {}
 
-    # load dataset
-    dataset = load_dataset(args.dataset)
-    dataset = dataset.filter(lambda sample: sample["language"] == lang)
+#     # load dataset
+#     dataset = load_dataset(args.dataset)
+#     dataset = dataset.filter(lambda sample: sample["language"] == lang)
 
-    if args.num_samples != "all":
-        max_test_samples = int(args.num_samples)
-        dataset = dataset.select(range(max_test_samples))
+#     if args.num_samples != "all":
+#         max_test_samples = int(args.num_samples)
+#         dataset = dataset.select(range(max_test_samples))
 
-    # generate prompts
-    all_prompts = [
-        generate_prompt(lang, args.setting, args.model, question, fewshot_samples)
-        for question in dataset
-    ]
+#     # generate prompts
+#     all_prompts = [
+#         generate_prompt(lang, args.setting, args.model, question, fewshot_samples)
+#         for question in dataset
+#     ]
 
-    # initialize and query
-    if args.model in ["qwen", "llava"]:
-        if args.model == "qwen":
-            model, tokenizer = initialize_model("qwen", args.model_path)
-            predictions = query_model("qwen", model, tokenizer, all_prompts)
-        elif args.model == "llava":
-            model, tokenizer, image_processor = initialize_model(
-                "llava", args.model_path
-            )
-    elif args.model == "chatgpt":
-        model, tokenizer, image_processor = None, None, None
-    else:
-        raise ValueError(f"Unsuported model: {args.model}")
+#     # initialize and query
+#     if args.model in ["qwen", "llava"]:
+#         if args.model == "qwen":
+#             model, tokenizer = initialize_model("qwen", args.model_path)
+#             predictions = query_model("qwen", model, tokenizer, all_prompts)
+#         elif args.model == "llava":
+#             model, tokenizer, image_processor = initialize_model(
+#                 "llava", args.model_path
+#             )
+#     elif args.model == "chatgpt":
+#         model, tokenizer, image_processor = None, None, None
+#     else:
+#         raise ValueError(f"Unsuported model: {args.model}")
 
-    # Save Results
-    save_results(output_folder, dataset, predictions, all_prompts)
-    print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
+#     # Save Results
+#     save_results(output_folder, dataset, predictions, all_prompts)
+#     print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
 
 
 def save_results(output_folder: str, results: Dict):
@@ -177,8 +177,18 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    evaluate_model(args)
+    if args.num_samples == 'all':
+        dataset = load_dataset(args.dataset)['train']
+    else: 
+        dataset = load_dataset(args.dataset)['train'].select(range(int(args.num_samples)))
 
+    # Run evaluation.
+    results = run_answer_prediction(dataset, args)
+
+    # Save csv results in 'results' folder.
+    output_folder = 'results'
+    save_results(output_folder, results)
+    print(f"Evaluation completed. Results saved to {output_folder}")
 
 if __name__ == "__main__":
     main()

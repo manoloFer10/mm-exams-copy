@@ -132,7 +132,7 @@ def run_answer_prediction(dataset, args):
 
     if model not in SUPPORTED_MODELS:
         raise NotImplementedError(
-            f"Model {model} not currently implemented for prediction."
+            f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
 
     if model == "gpt-4o":
