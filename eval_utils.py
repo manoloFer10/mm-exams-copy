@@ -292,7 +292,7 @@ def perform_experiments(dataset):
     
 
 def image_blindess_experiment(dataset):
-
+    #Just filter data by 'useful' and run accuracy eval
     image_blindness_dataset = dataset[dataset['image_information'] == 'useful']
     perform_accuracy_evaluation(image_blindness_dataset, 
                                 output_folder='eval_results/experiments/image_blidness',
