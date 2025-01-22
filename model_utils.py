@@ -74,6 +74,22 @@ def query_qwen(model, tokenizer, prompts: list, device="cuda"):
     return predictions
 
 
+def generate_prompt(model_name: str, question: dict):
+    if model_name == "qwen":
+        return parse_qwen_input(
+            question["question"], question.get("image"), question["options"]
+        )
+    elif model_name == "gpt-4o":
+        return parse_openai_input(
+            question["question"], question.get("image"), question["options"]
+        )
+    elif model_name == "maya":
+        # Add Maya-specific parsing
+        pass
+    else:
+        raise ValueError(f"Unsupported model: {model_name}")
+
+
 def parse_openai_input(question_text, question_image, options_list):
 
     def encode_image(image):

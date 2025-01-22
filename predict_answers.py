@@ -38,7 +38,7 @@ def predict_openAI(
     model: str,
     few_shot_setting: str,
     temperature: int,
-    max_tokens: int
+    max_tokens: int,
 ):
     """
     Defaults to ZERO-SHOT.
@@ -56,9 +56,9 @@ def predict_openAI(
     prompt_chat_dict = {"role": "user", "content": question + parsed_options}
 
     # Enable few-shot setting
-    if few_shot_setting == 'few-shot':
+    if few_shot_setting == "few-shot":
         messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
-    if few_shot_setting == 'zero-shot':
+    if few_shot_setting == "zero-shot":
         messages = [system_message, prompt_chat_dict]
 
     response = client.chat.completions.create(
@@ -71,11 +71,11 @@ def predict_openAI(
 
 def predict_qwen(
     qwen,
-    processor, 
+    processor,
     json_schema: Dict,
     system_message: List[Dict[str, str]],
     lang: str,
-    few_shot_setting: str
+    few_shot_setting: str,
 ):
     """
     ZERO-SHOT
@@ -86,16 +86,17 @@ def predict_qwen(
     question_image = json_schema["image_png"]
     options_list = json_schema["options"]
 
-    prompt_chat_dict, image_paths = parse_qwen_input(question, question_image, options_list)
+    prompt_chat_dict, image_paths = parse_qwen_input(
+        question, question_image, options_list
+    )
 
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
     # Enable few-shot setting
-    if few_shot_setting == 'few-shot':
+    if few_shot_setting == "few-shot":
         messages = [system_message, fetch_few_shot_examples(lang), prompt_chat_dict]
-    if few_shot_setting == 'zero-shot':
+    if few_shot_setting == "zero-shot":
         messages = [system_message, prompt_chat_dict]
-
 
     inputs = processor(
         text=messages,  # This will still align images with text
@@ -123,8 +124,8 @@ def run_answer_prediction(dataset, args):
     """
     model = args.model
     API_KEY = args.api_key
-    few_shot_setting = args.setting 
-    lang = args.selected_langs[0] # Change later
+    few_shot_setting = args.setting
+    lang = args.selected_langs[0]  # Change later
 
     results = []
 
@@ -142,9 +143,9 @@ def run_answer_prediction(dataset, args):
                 client,
                 question_json,
                 system_message,
-                lang, 
-                model = 'gpt-4o',
-                few_shot_setting = few_shot_setting,
+                lang,
+                model="gpt-4o",
+                few_shot_setting=few_shot_setting,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -152,22 +153,19 @@ def run_answer_prediction(dataset, args):
             question_json["prediction_by_" + model] = prediction
             # question_json['prompt_used'] = prompt
             result_metadata = question_json.copy()
-            results.append(result_metadata) 
+            results.append(result_metadata)
 
-    if model == 'llama':
-        client = OpenAI(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=API_KEY
-        )
+    if model == "llama":
+        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=API_KEY)
 
         for question_json in tqdm(dataset):
             prediction = predict_openAI(
                 client,
                 question_json,
                 system_message,
-                lang, 
-                model = 'llama-3.2-90b-vision-preview',
-                few_shot_setting = few_shot_setting,
+                lang,
+                model="llama-3.2-90b-vision-preview",
+                few_shot_setting=few_shot_setting,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
@@ -175,15 +173,17 @@ def run_answer_prediction(dataset, args):
             question_json["prediction_by_" + model] = prediction
             # question_json['prompt_used'] = prompt
             result_metadata = question_json.copy()
-            results.append(result_metadata) 
+            results.append(result_metadata)
 
     if model == "maya":
-        raise NotImplementedError(f'Model: {model} not currently implemented for prediction.')
+        raise NotImplementedError(
+            f"Model: {model} not currently implemented for prediction."
+        )
 
     if model == "qwen":
         warnings.warn("Warning, you are about to load a model locally.")
 
-        model_name= "Qwen/Qwen2-VL-7B-Instruct" # TODO: Set actual Qwen2 model.
+        model_name = "Qwen/Qwen2-VL-7B-Instruct"  # TODO: Set actual Qwen2 model.
 
         qwen = AutoModelForVision2Seq.from_pretrained(
             model_name,
@@ -197,17 +197,17 @@ def run_answer_prediction(dataset, args):
 
         for question_json in tqdm(dataset):
             prediction = predict_qwen(
-                qwen, 
-                qwen_processor, 
-                question_json, 
+                qwen,
+                qwen_processor,
+                question_json,
                 system_message,
                 lang,
-                few_shot_setting
+                few_shot_setting,
             )
 
             question_json["prediction_by_" + model] = prediction
             result_metadata = question_json.copy()
-            results.append(result_metadata) 
+            results.append(result_metadata)
 
     # Returns the json object with the field 'prediction'
     return results
