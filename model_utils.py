@@ -8,7 +8,7 @@ from typing import Dict, List
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya", "llama"]
+SUPPORTED_MODELS = ["gpt-4o", "qwen-7b", "maya", "llama"]
 
 # !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
@@ -23,7 +23,7 @@ def initialize_model(
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
 
-    if model_name == "qwen":
+    if model_name == "qwen-7b":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
             torch_dtype=torch.float16,
@@ -56,7 +56,7 @@ def query_model(
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen":
+    if model_name == "qwen-7b":
         return query_qwen(model, processor, prompts, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
@@ -66,6 +66,9 @@ def query_model(
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     elif model_name == "gpt-4o":
         # Add gpt querying logic
+        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
+    elif model_name == "maya":
+        # Add Maya-specific parsing
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     else:
         raise ValueError(f"Unsupported model: {model_name}")
@@ -115,7 +118,7 @@ def query_qwen(
 
 
 def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting: str = 'zero-shot'):
-    if model_name == "qwen":
+    if model_name == "qwen-7b":
         return parse_qwen_input(
             question["question"], question.get("image"), question["options"], lang, few_shot_setting
         )
@@ -125,6 +128,12 @@ def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting:
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
+        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
+    elif model_name == "pangea":
+        # Add pangea querying logic
+        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
+    elif model_name == "molmo":
+        # Add molmo querying logic
         raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
     else:
         raise ValueError(f"Unsupported model: {model_name}")
