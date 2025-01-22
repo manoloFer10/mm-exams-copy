@@ -3,7 +3,7 @@ import pandas as pd
 from model_utils import SUPPORTED_MODELS
 from sklearn.metrics import accuracy_score
 
-EVALUATION_STYLES = ['complete', 'accuracy', 'statistics']
+EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments']
 
 LANGUAGES = {
   "aa": "Afar",
