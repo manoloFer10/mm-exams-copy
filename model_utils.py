@@ -66,6 +66,18 @@ def query_model(
         raise ValueError(f"Unsupported model: {model_name}")
 
 
+def query_pangea():
+    pass
+
+
+def query_molmo():
+    pass
+
+
+def query_gpt4o():
+    pass
+
+
 def query_qwen(
     model,
     processor,

@@ -72,7 +72,9 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     """
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
+    # Language
     dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    # Level
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
     return dataset
