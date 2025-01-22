@@ -2,3 +2,6 @@ test data/
 run.ps1
 run_eval.ps1
 results/
+.DS_Store
+outputs/
+slurm/
