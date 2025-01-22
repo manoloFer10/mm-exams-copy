@@ -5,8 +5,8 @@ from pathlib import Path
 from PIL import Image
 from typing import Dict, List
 
-temperature = 0
-max_tokens = 1  # Only output the option chosen.
+TEMPERATURE = 0
+MAX_TOKENS = 1  # Only output the option chosen.
 
 SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya", "llama"]
 
@@ -20,9 +20,15 @@ def initialize_model(
     """
     Initialize the model and processor/tokenizer based on the model name.
     """
+    temperature = TEMPERATURE
+    max_tokens = MAX_TOKENS
+
     if model_name == "qwen":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
+            torch_dtype=torch.float16,
+            temperature=temperature,
+            max_new_tokens=max_tokens,
             device_map=device,
             torch_dtype=torch.bfloat16,
             # attn_implementation="flash_attention_2",
