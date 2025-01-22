@@ -55,13 +55,13 @@ def query_model(
         return query_qwen(model, processor, prompts, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
-        pass
+        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     elif model_name == "molmo":
         # Add molmo querying logic
-        pass
+        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     elif model_name == "gpt-4o":
         # Add gpt querying logic
-        pass
+        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -114,7 +114,7 @@ def generate_prompt(model_name: str, question: dict):
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
-        pass
+        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -172,34 +172,13 @@ def parse_openai_input(question_text, question_image, options_list):
 
     return question, parsed_options
 
-
 def parse_qwen_input(question_text, question_image, options_list):
-    content = []
-    hint = f"The following is a multiple choice question."  # add subject
-    hint += " Please only give the correct option, without any other details or explanations."
-    content.append({"type": "text", "text": hint})
-    if question_image is not None:
-        content.append({"type": "image"})
-        images = [Image.open(question_image)]
-    else:
-        images = None
-    question_message = question_text
-    # ignore images on answers for now <- this would be an extra evaluation
-    formatted_options = []
-    for i, option in enumerate(options_list):
-        letter = chr(ord("A") + i)
-        formatted_options.append(f"{letter}. {option}")
+    '''
+    Outputs: conversation dictionary supported by qwen.
+    '''
+    system_message = SYSTEM_MESSAGE
+    system_message = [{"role": "system", "content": system_message}]
 
-    options_text = "\n".join(formatted_options)  # Join options with newlines
-    content.append({"type": "text", "text": options_text})
-
-    # Create the messages list
-    messages = [{"role": "user", "content": content}]
-
-    return messages, images
-
-
-def parse_qwen_input_(question_text, question_image, options_list):
     if question_image:
         question = [
             {
@@ -249,7 +228,7 @@ def parse_qwen_input_(question_text, question_image, options_list):
                 new_text_option
             )  # Puts the option text if it isn't an image.
 
-    prompt_text = [question] + parsed_options
+    prompt_text = system_message + [question] + parsed_options
 
     if question_image:
         image_paths = [question_image] + image_paths

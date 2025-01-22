@@ -69,7 +69,7 @@ def predict_openAI(
     return format_answer(output_text)
 
 
-def query_qwen(
+def predict_Qwen(
     model,
     processor,
     json_schema: Dict,
@@ -197,7 +197,7 @@ def run_answer_prediction(dataset, args):
         qwen_processor = AutoProcessor.from_pretrained(model_name)
 
         for question_json in tqdm(dataset):
-            prediction = query_qwen(
+            prediction = predict_Qwen(
                 qwen,
                 qwen_processor,
                 question_json,
