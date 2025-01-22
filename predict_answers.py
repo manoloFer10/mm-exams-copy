@@ -133,7 +133,7 @@ def run_answer_prediction(dataset, args):
 
     if model not in SUPPORTED_MODELS:
         raise NotImplementedError(
-            f"Model {model} not currently implemented for prediction."
+            f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
 
     if model == "gpt-4o":
@@ -196,7 +196,7 @@ def run_answer_prediction(dataset, args):
         qwen_processor = AutoProcessor.from_pretrained(model_name)
 
         for question_json in tqdm(dataset):
-            prediction = predict_qwen(
+            prediction = query_qwen(
                 qwen,
                 qwen_processor,
                 question_json,
