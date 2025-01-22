@@ -194,6 +194,7 @@ def perform_complete_evaluation(dataset):
 
     perform_accuracy_evaluation(dataset)
     perform_descriptive_statistics(dataset)
+    perform_experiments(dataset)
 
 def perform_accuracy_evaluation(dataset, output_folder = None, file_name = None):
     code2lang = LANGUAGES
