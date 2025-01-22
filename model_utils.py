@@ -3,6 +3,7 @@ import torch
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
 from PIL import Image
+from typing import Dict, List
 
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
@@ -51,7 +52,7 @@ def query_model(
     Query the model based on the model name.
     """
     if model_name == "qwen":
-        return query_qwen(model, processor, prompts, device)
+        return query_qwen(model, processor, prompts, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         pass
@@ -65,14 +66,30 @@ def query_model(
         raise ValueError(f"Unsupported model: {model_name}")
 
 
-def query_qwen(model, tokenizer, prompts: list, device="cuda"):
-    predictions = []
-    for prompt in prompts:
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        with torch.inference_mode():
-            outputs = model.generate(**inputs, max_new_tokens=128)
-        predictions.append(tokenizer.decode(outputs[0], skip_special_tokens=True))
-    return predictions
+def query_qwen(
+    model,
+    processor,
+    prompt: list,
+    images: list,
+    setting: str,
+    device="cuda",
+):
+    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+    inputs = processor(
+        text=[text_prompt], images=images, padding=True, return_tensors="pt"
+    ).to(device)
+
+    # Generate response
+    output_ids = model.generate(**inputs, max_new_tokens=128)
+    generated_ids = [
+        output_ids[len(input_ids) :]
+        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
+    ]
+    response = processor.batch_decode(
+        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+    )
+
+    return format_answer(response[0])
 
 
 def generate_prompt(model_name: str, question: dict):

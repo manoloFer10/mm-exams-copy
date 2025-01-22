@@ -69,8 +69,8 @@ def predict_openAI(
     return format_answer(output_text)
 
 
-def predict_qwen(
-    qwen,
+def query_qwen(
+    model,
     processor,
     json_schema: Dict,
     system_message: List[Dict[str, str]],
@@ -106,7 +106,7 @@ def predict_qwen(
     ).to("cuda" if torch.cuda.is_available() else "cpu")
 
     # Generate response
-    output_ids = qwen.generate(**inputs, max_new_tokens=max_tokens)
+    output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
