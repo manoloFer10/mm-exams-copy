@@ -144,7 +144,30 @@ def parse_openai_input(question_text, question_image, options_list):
     return question, parsed_options
 
 
-def parse_qwen_input(question_text, question_image, options_list):
+def parse_qwen_intpu(question_text, question_image, options_list):
+    content = []
+    hint = f"The following is a multiple choice question."  # add subject
+    hint += " Please only give the correct option, without any other details or explanations."
+    content.append({"type": "text", "text": hint})
+    if question_image is not None:
+        content.append({"type": "image", "image": question_image})
+    question_message = question_text
+    # ignore images on answers for now <- this would be an extra evaluation
+    formatted_options = []
+    for i, option in enumerate(options_list):
+        letter = chr(ord("A") + i)
+        formatted_options.append(f"{letter}. {option}")
+
+    options_text = "\n".join(formatted_options)  # Join options with newlines
+    content.append({"type": "text", "text": options_text})
+
+    # Create the messages list
+    messages = [{"role": "user", "content": content}]
+
+    return messages
+
+
+def parse_qwen_input_(question_text, question_image, options_list):
     if question_image:
         question = [
             {
