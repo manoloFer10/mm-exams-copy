@@ -1,74 +1,15 @@
 import base64
 import torch
-from transformers import Qwen2VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+from pathlib import Path
 
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ['gpt-4o', 'qwen', 'maya', 'llama']
+SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya", "llama"]
 
 # !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
-
-
-def initialize_model(
-    model_name: str, model_path: str, api_key: str = None, device: str = "cuda"
-):
-    """
-    Initialize the model and processor/tokenizer based on the model name.
-    """
-    if model_name == "qwen":
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
-        )
-        processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
-
-    elif model_name == "pangea":
-        # Add Pangea initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name == "molmo":
-        # Add Molmo initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name == "gpt-4o":
-        # Add gpt initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
-    else:
-        raise ValueError(f"Unsupported model: {model_name}")
-    return model, processor
-
-
-def query_model(
-    model_name: str, model, processor, prompts: list, images=None, device: str = "cuda"
-):
-    """
-    Query the model based on the model name.
-    """
-    if model_name == "qwen":
-        return query_qwen(model, processor, prompts, device)
-    elif model_name == "pangea":
-        # Add pangea querying logic
-        pass
-    elif model_name == "molmo":
-        # Add molmo querying logic
-        pass
-    elif model_name == "gpt-4o":
-        # Add gpt querying logic
-        pass
-    else:
-        raise ValueError(f"Unsupported model: {model_name}")
-
-
-def query_qwen(model, tokenizer, prompts: list, device="cuda"):
-    predictions = []
-    for prompt in prompts:
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        with torch.inference_mode():
-            outputs = model.generate(**inputs, max_new_tokens=128)
-        predictions.append(tokenizer.decode(outputs[0], skip_special_tokens=True))
-    return predictions
 
 
 def parse_openai_input(question_text, question_image, options_list):
@@ -77,7 +18,7 @@ def parse_openai_input(question_text, question_image, options_list):
         try:
             return base64.b64encode(image).decode("utf-8")
         except Exception as e:
-            raise TypeError(f'Image {image} could not be encoded. {e}')
+            raise TypeError(f"Image {image} could not be encoded. {e}")
 
     question = [{"type": "text", "text": question_text}]
 
