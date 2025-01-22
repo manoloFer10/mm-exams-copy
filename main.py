@@ -96,7 +96,7 @@ def evaluate_model(args):
         # Generate prompt
         prompt, images = generate_prompt(args.model, question)
         # Query model
-        prediction = query_model(args.model, model, processor, [prompt], images)
+        prediction = query_model(args.model, model, processor, prompt, images)
 
         # Format answer
         formatted_prediction = format_answer(prediction[0])
@@ -120,57 +120,6 @@ def evaluate_model(args):
         json.dump(results, f, indent=2)
 
     print(f"Evaluation completed. Results saved to {output_path}")
-
-
-def test_lang(args, lang: str):  # Manu: already done by run_answer_prediction
-    # TODO: needs refactor to fit model_predict calls
-    setting = args.setting
-
-    output_folder = f"outputs/{setting}/mode_{args.model}/{lang}"
-    os.makdirs(output_folder, exist_ok=True)
-
-    if setting == "few-shot":
-        fewshot_samples = generate_fewshot_samples(lang)
-    else:
-        fewshot_samples = {}
-
-    # load dataset
-    dataset = load_from_disk(args.dataset)
-    dataset = dataset.filter(lambda sample: sample["language"] == lang)
-
-    if args.num_samples != "all":
-        max_test_samples = int(args.num_samples)
-        dataset = dataset.select(range(max_test_samples))
-
-    # generate prompts
-    all_prompts = [
-        generate_prompt(lang, args.setting, args.model, question, fewshot_samples)
-        for question in dataset
-    ]
-
-    # initialize and query
-    if args.model in ["qwen", "llava"]:
-        if args.model == "qwen":
-            model, tokenizer = initialize_model("qwen", args.model_path)
-            predictions = query_model("qwen", model, tokenizer, all_prompts)
-        elif args.model == "llava":
-            model, tokenizer, image_processor = initialize_model(
-                "llava", args.model_path
-            )
-    elif args.model == "chatgpt":
-        model, tokenizer, image_processor = None, None, None
-    else:
-        raise ValueError(f"Unsuported model: {args.model}")
-
-    # Save Results
-    save_results(output_folder, dataset, predictions, all_prompts)
-    print(f"Evaluation completed for {lang}. Results saved to {output_folder}")
-
-
-def save_results(output_folder: str, results: Dict):
-    output_path = os.path.join(output_folder, "results.json")
-    df = pd.read_json(results)
-    df.to_csv(output_path, index=False)
 
 
 def main():

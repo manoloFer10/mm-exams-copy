@@ -71,7 +71,6 @@ def query_qwen(
     processor,
     prompt: list,
     images: list,
-    setting: str,
     device="cuda",
 ):
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
@@ -89,7 +88,7 @@ def query_qwen(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
-    return format_answer(response[0])
+    return response
 
 
 def generate_prompt(model_name: str, question: dict):
@@ -250,10 +249,10 @@ def format_answer(answer: str):
     """
     Returns: A zero-indexed integer corresponding to the answer.
     """
-    if not isinstance(answer, str) or len(answer) != 1:
-        raise ValueError(
-            f"Invalid input: '{answer}'. Expected a single character string."
-        )
+    if not isinstance(answer, str):
+        raise ValueError(f"Invalid input: '{answer}'.")
+    if len(answer) != 1:
+        answer = answer[0]
 
     if "A" <= answer <= "Z":
         # Convert letter to zero-indexed number
