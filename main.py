@@ -22,8 +22,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--num_samples",
-        type=str,
-        default="3",
+        type=int,
+        default=None,
         help="number of samples to test",
     )
     parser.add_argument(
@@ -73,8 +73,8 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     # TODO: ADD OTHER FILTERS
     dataset = load_dataset(dataset_name)
     dataset = dataset.filter(lambda sample: sample["language"] == lang)
-    if num_samples != "all":
-        dataset = dataset.select(range(int(num_samples)))
+    if num_samples is not None:
+        dataset = dataset.select(range(num_samples))
     return dataset
 
 
