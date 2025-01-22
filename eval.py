@@ -7,7 +7,8 @@ from eval_utils import (
     EVALUATION_STYLES,
     perform_complete_evaluation,
     perform_accuracy_evaluation,
-    perform_overall_statistics
+    perform_descriptive_statistics,
+    perform_experiments
 )
 
 def parse_args():
@@ -43,7 +44,9 @@ def run_evaluation(results, args):
     if style == 'accuracy':
         perform_accuracy_evaluation(results)
     if style == 'statistics':
-        perform_overall_statistics(results)
+        perform_descriptive_statistics(results)
+    if style == 'experiments':
+        perform_experiments(results)
 
 
 def main():

@@ -1,11 +1,14 @@
 import base64
 import torch
-from transformers import Qwen2VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+from pathlib import Path
+from PIL import Image
+from typing import Dict, List
 
 temperature = 0
 max_tokens = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ['gpt-4o', 'qwen', 'maya', 'llama']
+SUPPORTED_MODELS = ["gpt-4o", "qwen", "maya", "llama"]
 
 # !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
@@ -19,13 +22,15 @@ def initialize_model(
     """
     if model_name == "qwen":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path,
+            Path(model_path) / "model",
             device_map=device,
             torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            # attn_implementation="flash_attention_2",
+            local_files_only=True,
         )
-        processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
-
+        processor = AutoProcessor.from_pretrained(
+            Path(model_path) / "processor", local_files_only=True
+        )
     elif model_name == "pangea":
         # Add Pangea initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
@@ -47,7 +52,7 @@ def query_model(
     Query the model based on the model name.
     """
     if model_name == "qwen":
-        return query_qwen(model, processor, prompts, device)
+        return query_qwen(model, processor, prompts, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         pass
@@ -61,14 +66,45 @@ def query_model(
         raise ValueError(f"Unsupported model: {model_name}")
 
 
-def query_qwen(model, tokenizer, prompts: list, device="cuda"):
-    predictions = []
-    for prompt in prompts:
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        with torch.inference_mode():
-            outputs = model.generate(**inputs, max_new_tokens=128)
-        predictions.append(tokenizer.decode(outputs[0], skip_special_tokens=True))
-    return predictions
+def query_qwen(
+    model,
+    processor,
+    prompt: list,
+    images: list,
+    device="cuda",
+):
+    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+    inputs = processor(
+        text=[text_prompt], images=images, padding=True, return_tensors="pt"
+    ).to(device)
+
+    # Generate response
+    output_ids = model.generate(**inputs, max_new_tokens=128)
+    generated_ids = [
+        output_ids[len(input_ids) :]
+        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
+    ]
+    response = processor.batch_decode(
+        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+    )
+
+    return response
+
+
+def generate_prompt(model_name: str, question: dict):
+    if model_name == "qwen":
+        return parse_qwen_input(
+            question["question"], question.get("image"), question["options"]
+        )
+    elif model_name == "gpt-4o":
+        return parse_openai_input(
+            question["question"], question.get("image"), question["options"]
+        )
+    elif model_name == "maya":
+        # Add Maya-specific parsing
+        pass
+    else:
+        raise ValueError(f"Unsupported model: {model_name}")
 
 
 def parse_openai_input(question_text, question_image, options_list):
@@ -77,7 +113,7 @@ def parse_openai_input(question_text, question_image, options_list):
         try:
             return base64.b64encode(image).decode("utf-8")
         except Exception as e:
-            raise TypeError(f'Image {image} could not be encoded. {e}')
+            raise TypeError(f"Image {image} could not be encoded. {e}")
 
     question = [{"type": "text", "text": question_text}]
 
@@ -126,6 +162,32 @@ def parse_openai_input(question_text, question_image, options_list):
 
 
 def parse_qwen_input(question_text, question_image, options_list):
+    content = []
+    hint = f"The following is a multiple choice question."  # add subject
+    hint += " Please only give the correct option, without any other details or explanations."
+    content.append({"type": "text", "text": hint})
+    if question_image is not None:
+        content.append({"type": "image"})
+        images = [Image.open(question_image)]
+    else:
+        images = None
+    question_message = question_text
+    # ignore images on answers for now <- this would be an extra evaluation
+    formatted_options = []
+    for i, option in enumerate(options_list):
+        letter = chr(ord("A") + i)
+        formatted_options.append(f"{letter}. {option}")
+
+    options_text = "\n".join(formatted_options)  # Join options with newlines
+    content.append({"type": "text", "text": options_text})
+
+    # Create the messages list
+    messages = [{"role": "user", "content": content}]
+
+    return messages, images
+
+
+def parse_qwen_input_(question_text, question_image, options_list):
     if question_image:
         question = [
             {
@@ -187,10 +249,10 @@ def format_answer(answer: str):
     """
     Returns: A zero-indexed integer corresponding to the answer.
     """
-    if not isinstance(answer, str) or len(answer) != 1:
-        raise ValueError(
-            f"Invalid input: '{answer}'. Expected a single character string."
-        )
+    if not isinstance(answer, str):
+        raise ValueError(f"Invalid input: '{answer}'.")
+    if len(answer) != 1:
+        answer = answer[0]
 
     if "A" <= answer <= "Z":
         # Convert letter to zero-indexed number

@@ -7,6 +7,9 @@ from huggingface_hub import hf_hub_download
 import zipfile
 import requests
 from typing import Dict, List, Optional
+from pathlib import Path
+
+DATASET_PATH = Path("/leonardo_")
 
 
 def load_cached_datasets(cache_path: str) -> Dict[str, bool]:
@@ -93,9 +96,26 @@ def merge_datasets(
     output_dataset_path: Optional[str] = None,
 ) -> Dataset:
     df = pd.read_csv(csv_path, header=1)
-    import code
+    links = []
+    for _, row in df.iterrows():
+        if pd.notna(row["image-link"]) or pd.notna(row["json-link"]):
+            links.append(
+                (
+                    row["json-link"] if pd.notna(row["json-link"]) else None,
+                    row["image-link"] if pd.notna(row["image-link"]) else None,
+                )
+            )
 
-    code.interact(local=locals())
+    cache = load_cached_datasets(cache_path)
+    datasets = []
+    for jsonfile, image_folder in links:
+        import code
+
+        code.interact(local=locals())
+        if jsonfile in cache:
+            continue
+    print("Downloading dataset {jsonfile}")
+    dataset = load_dataset_from_json(jsonfile)
 
 
 if __name__ == "__main__":

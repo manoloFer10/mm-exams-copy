@@ -1,9 +1,7 @@
 import os
 import pandas as pd
-from model_utils import SUPPORTED_MODELS
-from sklearn.metrics import accuracy_score
 
-EVALUATION_STYLES = ['complete', 'accuracy', 'statistics']
+EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments']
 
 LANGUAGES = {
   "aa": "Afar",
@@ -193,40 +191,109 @@ LANGUAGES = {
 }
 
 def perform_complete_evaluation(dataset):
-    perform_accuracy_evaluation(dataset)
-    perform_overall_statistics(dataset)
 
-def perform_accuracy_evaluation(dataset):
+    perform_accuracy_evaluation(dataset)
+    perform_descriptive_statistics(dataset)
+    perform_experiments(dataset)
+
+def perform_accuracy_evaluation(dataset, output_folder = None, file_name = None):
+    code2lang = LANGUAGES
+    
     #Prepare data in pandas 
     if isinstance(dataset, dict):
         df_dataset = pd.DataFrame(dataset)
+    elif isinstance(dataset, str):
+        df_dataset = pd.read_json(dataset)
     else: 
         df_dataset = dataset.to_pandas()
+
+    if 'language' in df_dataset.columns:
+        df_dataset['language'] = df_dataset['language'].map(code2lang)
+
     model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
     model_names = [col.replace('prediction_by_', '') for col in model_columns]
     df_dataset.rename(columns=dict(zip(model_columns, model_names)), inplace=True)
 
+
     # Group by language and calculate accuracies
     accuracy_df = df_dataset[model_names].eq(df_dataset['answer'], axis=0)
-    accuracies = accuracy_df.groupby(df_dataset['lang']).mean()
+    accuracies_by_lang  = accuracy_df.groupby(df_dataset['language']).mean()
+    overall_accuracies = accuracy_df.mean()
+    accuracies_by_lang.loc['Overall'] = overall_accuracies
 
     # Save
-    output_folder = "results_accuracy_all_langs"
+    if not output_folder:
+        output_folder = "eval_results/results_accuracy_all_langs"
     os.makedirs(output_folder, exist_ok=True)
-    output_file = os.path.join(output_folder, "accuracy_results.csv")
-    accuracies.to_csv(output_file)
+    if not file_name:
+        file_name = "accuracy_results.csv"
+    output_file = os.path.join(output_folder, file_name)
+    accuracies_by_lang.to_csv(output_file)
 
     print(f"Accuracy results saved to: {output_file}")
 
 
-def perform_overall_statistics(dataset):
-    # TODO
+def perform_descriptive_statistics(dataset):
+    code2lang = LANGUAGES
 
-    output_folder = "results_all_langs"
+    #Prepare data in pandas 
+    if isinstance(dataset, dict):
+        df_dataset = pd.DataFrame(dataset)
+    elif isinstance(dataset, str):
+        df_dataset = pd.read_json(dataset)
+    else: 
+        df_dataset = dataset.to_pandas()
+
+    output_folder = "eval_results/statistics"
     os.makedirs(output_folder, exist_ok=True)
 
-    output_file = os.path.join(output_folder, "accuracy_results.csv")
-    # df.to_csv(output_file)
+    # Frequency Tables
+    categorical_fields = ['language_full', 'country', 'level', 'category_en', 'image_type'] # Manu: excluded 'category_original_lang' because it will be endless.
+    for field in categorical_fields:
+        if field in df_dataset.columns:
+            freq_table = df_dataset[field].value_counts().reset_index()
+            freq_table.columns = [field, 'counts']
+            freq_table['proportion'] = freq_table['counts'] / freq_table['counts'].sum()
+            if 'language' in freq_table.columns:
+                freq_table['language'] = freq_table['language'].map(code2lang)
+            freq_table.to_csv(os.path.join(output_folder, f"{field}_frequency.csv"), index=False)
 
-    print(f"Statistics results saved to: {output_file}")
+    #  Length Statistics. Manu: do we really need these??
+    # text_fields = ['question', 'options']
+    # for field in text_fields:
+    #     if field in df_dataset.columns:
+    #         length_stats = df_dataset[field].dropna().apply(len).describe()
+    #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
+    # Correct answer distribution
+    if 'answer' in df_dataset.columns:
+        answer_stats = df_dataset['answer'].value_counts().reset_index()
+        answer_stats.columns = ['answer', 'counts']
+        answer_stats['proportion'] = answer_stats['counts'] / answer_stats['counts'].sum()
+        answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=False)
+
+    # Image metadata distribution
+    if 'image_information' in df_dataset.columns:
+        image_info_stats = df_dataset['image_information'].value_counts().reset_index()
+        image_info_stats.columns = ['image_information', 'counts']
+        image_info_stats['proportion'] = image_info_stats['counts'] / image_info_stats['counts'].sum()
+        image_info_stats.to_csv(os.path.join(output_folder, "image_information_breakdown.csv"), index=False)
+    if 'image_type' in df_dataset.columns:
+        image_type_stats = df_dataset['image_type'].value_counts().reset_index()
+        image_type_stats.columns = ['image_type', 'counts']
+        image_type_stats['proportion'] = image_type_stats['counts'] / image_type_stats['counts'].sum()
+        image_type_stats.to_csv(os.path.join(output_folder, "image_type_breakdown.csv"), index=False)
+
+    print(f"Overall statistics saved to folder: {output_folder}")
+
+def perform_experiments(dataset):
+
+    image_blindess_experiment(dataset)
+    
+
+def image_blindess_experiment(dataset):
+    #Just filter data by 'useful' and run accuracy eval
+    image_blindness_dataset = dataset[dataset['image_information'] == 'useful']
+    perform_accuracy_evaluation(image_blindness_dataset, 
+                                output_folder='eval_results/experiments/image_blidness',
+                                file_name = 'image_blidness_results.csv')
