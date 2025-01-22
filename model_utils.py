@@ -28,7 +28,6 @@ def initialize_model(
             Path(model_path) / "model",
             torch_dtype=torch.float16,
             temperature=temperature,
-            max_new_tokens=max_tokens,
             device_map=device,
             torch_dtype=torch.bfloat16,
             # attn_implementation="flash_attention_2",
@@ -90,6 +89,7 @@ def query_qwen(
     prompt: list,
     image_paths: list,
     device="cuda",
+    max_tokens= MAX_TOKENS
 ):
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
