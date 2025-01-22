@@ -1,18 +1,15 @@
-import ast
 import argparse
-import pandas as pd
 import numpy as np
 from datasets import load_from_disk
 import os
 import random
 from typing import List, Dict
-from predict_answers import run_answer_prediction
 import json
+from tqdm import tqdm
 
 from model_utils import (
     initialize_model,
     query_model,
-    format_answer,
     SUPPORTED_MODELS,
     generate_prompt,
 )
@@ -23,7 +20,7 @@ def parse_args():
     parser.add_argument(
         "--num_samples",
         type=int,
-        default=None,
+        default='3',
         help="number of samples to test",
     )
     parser.add_argument(
@@ -45,10 +42,16 @@ def parse_args():
         help="list of strings of languages",
     )
     parser.add_argument(
-        "--api_key", type=str, default=None, help="explicitly give an api key"
+        "--api_key", 
+        type=str, 
+        default=None, 
+        help="explicitly give an api key"
     )
     parser.add_argument(
-        "--dataset", type=str, required=True, help="dataset name or path"
+        "--dataset", 
+        type=str, 
+        required=True, 
+        help="dataset name or path"
     )
     parser.add_argument(
         "--model",
@@ -94,16 +97,13 @@ def evaluate_model(args):
 
     # Evaluate each question
     results = []
-    for question in dataset:
+    for question in tqdm(dataset):
         # Generate prompt
         prompt, images = generate_prompt(args.model, question)
         # Query model
         prediction = query_model(args.model, model, processor, prompt, images)
 
-        # Format answer
-        formatted_prediction = format_answer(prediction)
-
-        question["prediction_by_" + model] = formatted_prediction
+        question["prediction_by_" + model] = prediction
         # question_json['prompt_used'] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)
