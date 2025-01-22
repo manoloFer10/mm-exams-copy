@@ -197,7 +197,7 @@ def perform_complete_evaluation(dataset):
     perform_accuracy_evaluation(dataset)
     perform_descriptive_statistics(dataset)
 
-def perform_accuracy_evaluation(dataset):
+def perform_accuracy_evaluation(dataset, output_folder = None, file_name = None):
     code2lang = LANGUAGES
     
     #Prepare data in pandas 
@@ -218,13 +218,18 @@ def perform_accuracy_evaluation(dataset):
 
     # Group by language and calculate accuracies
     accuracy_df = df_dataset[model_names].eq(df_dataset['answer'], axis=0)
-    accuracies = accuracy_df.groupby(df_dataset['language']).mean()
+    accuracies_by_lang  = accuracy_df.groupby(df_dataset['language']).mean()
+    overall_accuracies = accuracy_df.mean()
+    accuracies_by_lang.loc['Overall'] = overall_accuracies
 
     # Save
-    output_folder = "eval_results/results_accuracy_all_langs"
+    if not output_folder:
+        output_folder = "eval_results/results_accuracy_all_langs"
     os.makedirs(output_folder, exist_ok=True)
-    output_file = os.path.join(output_folder, "accuracy_results.csv")
-    accuracies.to_csv(output_file)
+    if not file_name:
+        file_name = "accuracy_results.csv"
+    output_file = os.path.join(output_folder, file_name)
+    accuracies_by_lang.to_csv(output_file)
 
     print(f"Accuracy results saved to: {output_file}")
 
@@ -284,7 +289,12 @@ def perform_descriptive_statistics(dataset):
 
 def perform_experiments(dataset):
 
-    image_helpness_experiment(dataset)
+    image_blindess_experiment(dataset)
+    
 
-def image_helpness_experiment(dataset):
-    raise NotImplementedError
+def image_blindess_experiment(dataset):
+
+    image_blindness_dataset = dataset[dataset['image_information'] == 'useful']
+    perform_accuracy_evaluation(image_blindness_dataset, 
+                                output_folder='eval_results/experiments/image_blidness',
+                                file_name = 'image_blidness_results.csv')
