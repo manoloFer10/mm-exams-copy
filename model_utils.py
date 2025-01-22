@@ -3,7 +3,7 @@ import torch
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
 from PIL import Image
-from typing import Dict, List
+from openai import OpenAI
 
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
@@ -43,21 +43,31 @@ def initialize_model(
         # Add Molmo initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
     elif model_name == "gpt-4o":
-        # Add gpt initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
+        client = OpenAI(api_key=api_key)
+        model = client
+        processor = None
     else:
-        raise ValueError(f"Unsupported model: {model_name}")
+        raise NotImplementedError(
+            f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
+        )
     return model, processor
 
 
 def query_model(
-    model_name: str, model, processor, prompts: list, images=None, device: str = "cuda"
+    model_name: str, 
+    model, 
+    processor, 
+    prompt: list, 
+    images=None, 
+    device: str = "cuda", 
+    temperature = TEMPERATURE,
+    max_tokens = MAX_TOKENS
 ):
     """
     Query the model based on the model name.
     """
     if model_name == "qwen-7b":
-        return query_qwen(model, processor, prompts, images, device)
+        return query_qwen(model, processor, prompt, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
@@ -65,8 +75,7 @@ def query_model(
         # Add molmo querying logic
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     elif model_name == "gpt-4o":
-        # Add gpt querying logic
-        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
+        return query_gpt4o(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
@@ -82,8 +91,12 @@ def query_molmo():
     pass
 
 
-def query_gpt4o():
-    pass
+def query_gpt4o(client, model_name, prompt, temperature, max_tokens):
+    response = client.chat.completions.create(
+            model=model_name, messages=prompt, temperature=temperature, max_tokens=max_tokens
+    )
+    output_text = response.choices[0].message.content.strip()
+    return format_answer(output_text)
 
 
 def query_qwen(
@@ -120,11 +133,11 @@ def query_qwen(
 def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting: str = 'zero-shot'):
     if model_name == "qwen-7b":
         return parse_qwen_input(
-            question["question"], question.get("image"), question["options"], lang, few_shot_setting
+            question["question"], question["image"], question["options"], lang, few_shot_setting
         )
     elif model_name == "gpt-4o":
         return parse_openai_input(
-            question["question"], question.get("image"), question["options"], lang, few_shot_setting
+            question["question"], question["image"], question["options"], lang, few_shot_setting
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -140,6 +153,8 @@ def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting:
 
 
 def parse_openai_input(question_text, question_image, options_list, lang, few_shot_setting):
+    system_message = SYSTEM_MESSAGE
+    system_message = [{"role": "system", "content": system_message}]
 
     def encode_image(image):
         try:
@@ -190,7 +205,22 @@ def parse_openai_input(question_text, question_image, options_list, lang, few_sh
             new_text_option["text"] = formated_text
             parsed_options.append(new_text_option)
 
-    return question, parsed_options
+    user_text = [question] + parsed_options
+    user_message = {
+        'role': 'user',
+        'content': user_text
+    }
+
+    # Enable few-shot setting
+    if few_shot_setting == "few-shot":
+        user_message['content'] = fetch_few_shot_examples(lang) + user_message['content']
+        messages = [system_message, user_message]
+    elif few_shot_setting == "zero-shot":
+        messages = [system_message, user_message]
+    else:
+        raise ValueError(f'Invalid few_shot_setting: {few_shot_setting}')
+
+    return messages, None
 
 def parse_qwen_input(question_text, question_image, options_list, lang, few_shot_setting):
     '''
