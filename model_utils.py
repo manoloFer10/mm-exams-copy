@@ -82,16 +82,20 @@ def query_qwen(
     model,
     processor,
     prompt: list,
-    images: list,
+    image_paths: list,
     device="cuda",
 ):
-    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+    images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
+
     inputs = processor(
-        text=[text_prompt], images=images, padding=True, return_tensors="pt"
+        text=prompt,  
+        images=images,
+        return_tensors="pt",
+        padding=True,
     ).to(device)
 
     # Generate response
-    output_ids = model.generate(**inputs, max_new_tokens=128)
+    output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
@@ -100,17 +104,18 @@ def query_qwen(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
-    return response
+    return format_answer(response[0])
 
 
-def generate_prompt(model_name: str, question: dict):
+
+def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting: str = 'zero-shot'):
     if model_name == "qwen":
         return parse_qwen_input(
-            question["question"], question.get("image"), question["options"]
+            question["question"], question.get("image"), question["options"], lang, few_shot_setting
         )
     elif model_name == "gpt-4o":
         return parse_openai_input(
-            question["question"], question.get("image"), question["options"]
+            question["question"], question.get("image"), question["options"], lang, few_shot_setting
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -119,7 +124,7 @@ def generate_prompt(model_name: str, question: dict):
         raise ValueError(f"Unsupported model: {model_name}")
 
 
-def parse_openai_input(question_text, question_image, options_list):
+def parse_openai_input(question_text, question_image, options_list, lang, few_shot_setting):
 
     def encode_image(image):
         try:
@@ -172,7 +177,7 @@ def parse_openai_input(question_text, question_image, options_list):
 
     return question, parsed_options
 
-def parse_qwen_input(question_text, question_image, options_list):
+def parse_qwen_input(question_text, question_image, options_list, lang, few_shot_setting):
     '''
     Outputs: conversation dictionary supported by qwen.
     '''
@@ -228,12 +233,25 @@ def parse_qwen_input(question_text, question_image, options_list):
                 new_text_option
             )  # Puts the option text if it isn't an image.
 
-    prompt_text = system_message + [question] + parsed_options
+    user_text = [question] + parsed_options
+    user_message = {
+        'role': 'user',
+        'content': user_text
+    }
+
+    # Enable few-shot setting
+    if few_shot_setting == "few-shot":
+        user_message['content'] = fetch_few_shot_examples(lang) + user_message['content']
+        messages = [system_message, user_message]
+    elif few_shot_setting == "zero-shot":
+        messages = [system_message, user_message]
+    else:
+        raise ValueError(f'Invalid few_shot_setting: {few_shot_setting}')
 
     if question_image:
         image_paths = [question_image] + image_paths
 
-    return prompt_text, images_paths
+    return messages, images_paths
 
 
 def format_answer(answer: str):
