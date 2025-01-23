@@ -2,6 +2,8 @@ from datasets import Dataset, concatenate_datasets
 from pathlib import Path
 import os
 
+DATA_ROOT = Path("dataset/")
+
 
 def merge_datasets(data_dir: str):
     """
@@ -20,16 +22,7 @@ def merge_datasets(data_dir: str):
     # Iterate over all subdirectories in the data directory
     for dataset_dir in data_dir.iterdir():
         if dataset_dir.is_dir():
-            # Find the JSON file in the dataset directory
-            json_files = list(dataset_dir.glob("*.json"))
-            if not json_files:
-                print(f"No JSON file found in {dataset_dir}. Skipping.")
-                continue
 
-            # Load the JSON file as a dataset
-            json_file = json_files[
-                0
-            ]  # Assuming there's only one JSON file per directory
             print(f"Loading dataset from {json_file}")
             dataset = Dataset.from_json(str(json_file))
 
