@@ -6,3 +6,4 @@ results/
 .DS_Store
 outputs/
 slurm/
+__pycache__/
