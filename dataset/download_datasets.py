@@ -56,12 +56,17 @@ def get_files(repo_id: str):
     if len(images) < 1 and len(images_zip) != 1:
         print(f"No images found.")
         return
+    import code
+
+    code.interact(local=locals())
     dataset_dir.mkdir(parents=True, exist_ok=False)
-    json_path = hf_hub_download(repo_id, filename=json_files[0], local_dir=dataset_dir)
+    json_path = hf_hub_download(
+        repo_id, filename=json_files[0], local_dir=dataset_dir, repo_type="dataset"
+    )
     print(f"JSON file saved to: {json_path}")
     if len(images_zip) == 1:
         zip_path = hf_hub_download(
-            repo_id, filename=images_zip[0], local_dir=dataset_dir
+            repo_id, filename=images_zip[0], local_dir=dataset_dir, repo_type="dataset"
         )
         print(f"ZIP file saved to: {zip_path}")
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
