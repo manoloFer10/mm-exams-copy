@@ -100,7 +100,7 @@ def evaluate_model(args):
     results = []
     for question in tqdm(dataset):
         # Generate prompt. Note that only local models will need image_paths separatedly.
-        prompt, image_paths = generate_prompt(args.model, question,args.lang, SYSTEM_MESSAGE)
+        prompt, image_paths = generate_prompt(args.model, question, args.lang, SYSTEM_MESSAGE, args.setting)
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
 

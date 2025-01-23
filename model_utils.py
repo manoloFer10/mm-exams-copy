@@ -75,7 +75,7 @@ def query_model(
         # Add molmo querying logic
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
     elif model_name == "gpt-4o":
-        return query_gpt4o(model, model_name, prompt, temperature, max_tokens)
+        return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f'Model {model_name} not implemented for querying.')
@@ -91,7 +91,7 @@ def query_molmo():
     pass
 
 
-def query_gpt4o(client, model_name, prompt, temperature, max_tokens):
+def query_openai(client, model_name, prompt, temperature, max_tokens):
     response = client.chat.completions.create(
             model=model_name, messages=prompt, temperature=temperature, max_tokens=max_tokens
     )
