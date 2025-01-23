@@ -130,14 +130,14 @@ def query_qwen(
 
 
 
-def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting: str = 'zero-shot'):
+def generate_prompt(model_name: str, question: dict,lang: str, system_message, few_shot_setting: str = 'zero-shot'):
     if model_name == "qwen-7b":
         return parse_qwen_input(
-            question["question"], question["image"], question["options"], lang, few_shot_setting
+            question["question"], question["image"], question["options"], lang, system_message, few_shot_setting
         )
     elif model_name == "gpt-4o":
         return parse_openai_input(
-            question["question"], question["image"], question["options"], lang, few_shot_setting
+            question["question"], question["image"], question["options"], lang, system_message, few_shot_setting
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -152,8 +152,10 @@ def generate_prompt(model_name: str, question: dict,lang: str, few_shot_setting:
         raise ValueError(f"Unsupported model: {model_name}")
 
 
-def parse_openai_input(question_text, question_image, options_list, lang, few_shot_setting):
-    system_message = SYSTEM_MESSAGE
+def parse_openai_input(question_text, question_image, options_list, lang, system_message, few_shot_setting):
+    '''
+    Outputs: conversation dictionary supported by OpenAI.
+    '''
     system_message = [{"role": "system", "content": system_message}]
 
     def encode_image(image):
@@ -222,11 +224,10 @@ def parse_openai_input(question_text, question_image, options_list, lang, few_sh
 
     return messages, None
 
-def parse_qwen_input(question_text, question_image, options_list, lang, few_shot_setting):
+def parse_qwen_input(question_text, question_image, options_list, lang, system_message, few_shot_setting):
     '''
     Outputs: conversation dictionary supported by qwen.
     '''
-    system_message = SYSTEM_MESSAGE
     system_message = [{"role": "system", "content": system_message}]
 
     if question_image:
