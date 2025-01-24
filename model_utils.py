@@ -8,9 +8,9 @@ from openai import OpenAI
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen-7b", "maya", "llama"]
+SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "maya", "llama"]
 
-# !!! System message should be a dictionary with language-codes as keys and system messages in that language as values.
+# TODO: System message should be a dictionary with language-codes as keys and system messages in that language as values.
 SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
 
 
@@ -23,7 +23,7 @@ def initialize_model(
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
 
-    if model_name == "qwen-7b":
+    if model_name == "qwen2-7b":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
             torch_dtype=torch.float16,
@@ -66,7 +66,7 @@ def query_model(
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen-7b":
+    if model_name == "qwen2-7b":
         return query_qwen(model, processor, prompt, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
@@ -131,7 +131,7 @@ def query_qwen(
 
 
 def generate_prompt(model_name: str, question: dict,lang: str, system_message, few_shot_setting: str = 'zero-shot'):
-    if model_name == "qwen-7b":
+    if model_name == "qwen2-7b":
         return parse_qwen_input(
             question["question"], question["image"], question["options"], lang, system_message, few_shot_setting
         )
