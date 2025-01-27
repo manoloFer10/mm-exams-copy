@@ -289,7 +289,7 @@ def parse_qwen_input(
     """
     Outputs: conversation dictionary supported by qwen.
     """
-    system_message = [{"role": "system", "content": system_message}]
+    system_message = {"role": "system", "content": system_message}
 
     if question_image:
         question = [
@@ -345,6 +345,7 @@ def parse_qwen_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
+        # this is weird, check it ou afterwards
         user_message["content"] = (
             fetch_few_shot_examples(lang) + user_message["content"]
         )
