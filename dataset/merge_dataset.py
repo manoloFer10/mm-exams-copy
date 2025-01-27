@@ -4,7 +4,6 @@ import os
 
 DATA_ROOT = Path("data/")
 
-# Define the expected schema
 expected_features = Features(
     {
         "language": Value("string"),
@@ -15,7 +14,7 @@ expected_features = Features(
         "level": Value("string"),
         "category_en": Value("string"),
         "category_original_lang": Value("string"),
-        "original_question_num": Value("string"),  # Ensure this matches
+        "original_question_num": Value("string"),
         "question": Value("string"),
         "options": Sequence(Value("string")),
         "answer": Value("int64"),
@@ -86,4 +85,4 @@ def merge_datasets(data_dir: str):
 # Example usage
 if __name__ == "__main__":
     merged_dataset = merge_datasets(DATA_ROOT)
-    merge_datasets.save_to_disk("output_dir")
+    merge_dataset.save_to_disk("output_dir")

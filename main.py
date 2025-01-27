@@ -11,7 +11,7 @@ from model_utils import (
     query_model,
     generate_prompt,
     SUPPORTED_MODELS,
-    SYSTEM_MESSAGES
+    SYSTEM_MESSAGES,
 )
 
 
@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument(
         "--num_samples",
         type=int,
-        default='3',
+        default="all",
         help="number of samples to test",
     )
     parser.add_argument(
@@ -42,22 +42,16 @@ def parse_args():
         help="list of strings of language codes",
     )
     parser.add_argument(
-        "--api_key", 
-        type=str, 
-        default=None, 
-        help="explicitly give an api key"
+        "--api_key", type=str, default=None, help="explicitly give an api key"
     )
     parser.add_argument(
-        "--dataset", 
-        type=str, 
-        required=True, 
-        help="dataset name or path"
+        "--dataset", type=str, required=True, help="dataset name or path"
     )
     parser.add_argument(
         "--model",
         type=str,
         required=True,
-        help=f"Specify the model to use (must be one from the following: {', '.join(SUPPORTED_MODELS)})",
+        help=f"specify the model to use (must be one from the following: {', '.join(SUPPORTED_MODELS)})",
     )
     parser.add_argument(
         "--model_path",
@@ -98,9 +92,11 @@ def evaluate_model(args):
     # Evaluate each question
     results = []
     for question in tqdm(dataset):
-        lang = question['language']
+        lang = question["language"]
         # Generate prompt. Note that only local models will need image_paths separatedly.
-        prompt, image_paths = generate_prompt(args.model, question, lang, SYSTEM_MESSAGES[lang], args.setting)
+        prompt, image_paths = generate_prompt(
+            args.model, question, lang, SYSTEM_MESSAGES[lang], args.setting
+        )
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
 

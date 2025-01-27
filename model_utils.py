@@ -8,27 +8,47 @@ from openai import OpenAI
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "maya", "llama"]
+SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b"]
 
 # Update manually with supported languages translation
+# SYSTEM_MESSAGES = {
+#     "en": "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 is correct, then you should return the number 2.",
+#     "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید تنها با شماره صحیح پاسخ را بدهید. به عنوان مثال، اگر گزینه‌های ۱، ۲، ۳، ۴ داده شده باشد و گزینه ۲ درست باشد، باید عدد ۲ را بازگردانید.",
+#     "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correcto de la respuesta. Por ejemplo, si se te dan las opciones 1, 2, 3, 4 y la opción 2 es correcta, entonces debes devolver el número 2.",
+#     "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে। উদাহরণস্বরূপ, যদি আপনাকে ১, ২, ৩, ৪ বিকল্প দেওয়া হয় এবং বিকল্প ২ সঠিক হয়, তবে আপনাকে সংখ্যা ২ ফেরত দিতে হবে।",
+#     "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से ही उत्तर देना चाहिए। उदाहरण के लिए, यदि आपको विकल्प 1, 2, 3, 4 दिए गए हैं और विकल्प 2 सही है, तो आपको नंबर 2 लौटाना चाहिए।",
+#     "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu. Pavyzdžiui, jei pateikiami variantai 1, 2, 3, 4, o teisingas variantas yra 2, turite grąžinti skaičių 2.",
+#     "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答。例如，如果给出的选项是1, 2, 3, 4，而选项2是正确的，那么您应该返回数字2。",
+#     "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord. Bijvoorbeeld, als je de opties 1, 2, 3, 4 krijgt en optie 2 is correct, dan moet je nummer 2 retourneren.",
+#     "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి. ఉదాహరణకు, మీకు 1, 2, 3, 4 ఎంపికలు ఇస్తే మరియు ఎంపిక 2 సరైనది అయితే, మీరు సంఖ్య 2ను తిరిగి ఇవ్వాలి.",
+#     "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише правильним номером відповіді. Наприклад, якщо вам дано варіанти 1, 2, 3, 4, і правильним є варіант 2, ви повинні повернути номер 2.",
+#     "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ। ਉਦਾਹਰਣ ਲਈ, ਜੇ ਤੁਹਾਨੂੰ ਵਿਕਲਪ 1, 2, 3, 4 ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਵਿਕਲਪ 2 ਸਹੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਨੰਬਰ 2 ਵਾਪਸ ਕਰਨਾ ਚਾਹੀਦਾ ਹੈ।",
+#     "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba správnym číslom odpovede. Napríklad, ak sú vám dané možnosti 1, 2, 3, 4 a správnou možnosťou je 2, mali by ste vrátiť číslo 2.",
+#     "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko poprawnym numerem odpowiedzi. Na przykład, jeśli podano opcje 1, 2, 3, 4, a poprawną opcją jest 2, powinieneś zwrócić liczbę 2.",
+#     "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze správným číslem odpovědi. Například, pokud dostanete možnosti 1, 2, 3, 4 a možnost 2 je správná, měli byste vrátit číslo 2.",
+#     "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten. Wenn Ihnen beispielsweise die Optionen 1, 2, 3, 4 gegeben werden und Option 2 korrekt ist, sollten Sie die Nummer 2 zurückgeben.",
+#     "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
+#     "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।",
+# }
+
 SYSTEM_MESSAGES = {
-    "en": "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 is correct, then you should return the number 2.",
-    "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید تنها با شماره صحیح پاسخ را بدهید. به عنوان مثال، اگر گزینه‌های ۱، ۲، ۳، ۴ داده شده باشد و گزینه ۲ درست باشد، باید عدد ۲ را بازگردانید.",
-    "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correcto de la respuesta. Por ejemplo, si se te dan las opciones 1, 2, 3, 4 y la opción 2 es correcta, entonces debes devolver el número 2.",
-    "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে। উদাহরণস্বরূপ, যদি আপনাকে ১, ২, ৩, ৪ বিকল্প দেওয়া হয় এবং বিকল্প ২ সঠিক হয়, তবে আপনাকে সংখ্যা ২ ফেরত দিতে হবে।",
-    "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से ही उत्तर देना चाहिए। उदाहरण के लिए, यदि आपको विकल्प 1, 2, 3, 4 दिए गए हैं और विकल्प 2 सही है, तो आपको नंबर 2 लौटाना चाहिए।",
-    "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu. Pavyzdžiui, jei pateikiami variantai 1, 2, 3, 4, o teisingas variantas yra 2, turite grąžinti skaičių 2.",
-    "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答。例如，如果给出的选项是1, 2, 3, 4，而选项2是正确的，那么您应该返回数字2。",
-    "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord. Bijvoorbeeld, als je de opties 1, 2, 3, 4 krijgt en optie 2 is correct, dan moet je nummer 2 retourneren.",
-    "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి. ఉదాహరణకు, మీకు 1, 2, 3, 4 ఎంపికలు ఇస్తే మరియు ఎంపిక 2 సరైనది అయితే, మీరు సంఖ్య 2ను తిరిగి ఇవ్వాలి.",
-    "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише правильним номером відповіді. Наприклад, якщо вам дано варіанти 1, 2, 3, 4, і правильним є варіант 2, ви повинні повернути номер 2.",
-    "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ। ਉਦਾਹਰਣ ਲਈ, ਜੇ ਤੁਹਾਨੂੰ ਵਿਕਲਪ 1, 2, 3, 4 ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਵਿਕਲਪ 2 ਸਹੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਨੰਬਰ 2 ਵਾਪਸ ਕਰਨਾ ਚਾਹੀਦਾ ਹੈ।",
-    "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba správnym číslom odpovede. Napríklad, ak sú vám dané možnosti 1, 2, 3, 4 a správnou možnosťou je 2, mali by ste vrátiť číslo 2.",
-    "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko poprawnym numerem odpowiedzi. Na przykład, jeśli podano opcje 1, 2, 3, 4, a poprawną opcją jest 2, powinieneś zwrócić liczbę 2.",
-    "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze správným číslem odpovědi. Například, pokud dostanete možnosti 1, 2, 3, 4 a možnost 2 je správná, měli byste vrátit číslo 2.",
-    "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten. Wenn Ihnen beispielsweise die Optionen 1, 2, 3, 4 gegeben werden und Option 2 korrekt ist, sollten Sie die Nummer 2 zurückgeben.",
-    "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
-    "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।"
+    "en": "You are given a multiple-choice question to answer. You MUST respond only with the number corresponding to the correct answer, without any additional text or explanation.",
+    "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید فقط با شماره صحیح پاسخ دهید و هیچ توضیح اضافی ارائه ندهید.",
+    "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correspondiente a la respuesta correcta, sin ningún texto o explicación adicional.",
+    "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে, কোনো অতিরিক্ত টেক্সট বা ব্যাখ্যা ছাড়া।",
+    "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से उत्तर देना चाहिए, बिना किसी अतिरिक्त पाठ या व्याख्या के।",
+    "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu, be jokio papildomo teksto ar paaiškinimų.",
+    "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答，不添加任何额外的文本或解释。",
+    "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord, zonder enige extra tekst of uitleg.",
+    "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి, అదనపు పాఠ్యం లేదా వివరణ లేకుండా.",
+    "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише номером правильної відповіді, без додаткового тексту чи пояснень.",
+    "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ, ਬਿਨਾਂ ਕਿਸੇ ਵਾਧੂ ਪਾਠ ਜਾਂ ਵਿਆਖਿਆ ਦੇ।",
+    "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba číslom správnej odpovede, bez akéhokoľvek ďalšieho textu alebo vysvetlenia.",
+    "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko numerem poprawnej odpowiedzi, bez żadnego dodatkowego tekstu ani wyjaśnień.",
+    "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze číslem správné odpovědi, bez jakéhokoliv dalšího textu nebo vysvětlení.",
+    "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten, ohne zusätzlichen Text oder Erklärungen.",
+    "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời, không thêm bất kỳ văn bản hoặc giải thích nào.",
+    "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले केवल सही उत्तरको नम्बरले मात्र उत्तर दिनुपर्छ, कुनै अतिरिक्त पाठ वा व्याख्या बिना।",
 }
 
 
@@ -72,14 +92,14 @@ def initialize_model(
 
 
 def query_model(
-    model_name: str, 
-    model, 
-    processor, 
-    prompt: list, 
-    images=None, 
-    device: str = "cuda", 
-    temperature = TEMPERATURE,
-    max_tokens = MAX_TOKENS
+    model_name: str,
+    model,
+    processor,
+    prompt: list,
+    images=None,
+    device: str = "cuda",
+    temperature=TEMPERATURE,
+    max_tokens=MAX_TOKENS,
 ):
     """
     Query the model based on the model name.
@@ -88,15 +108,15 @@ def query_model(
         return query_qwen(model, processor, prompt, images, device)
     elif model_name == "pangea":
         # Add pangea querying logic
-        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
+        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "molmo":
         # Add molmo querying logic
-        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
+        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "gpt-4o":
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
-        raise NotImplementedError(f'Model {model_name} not implemented for querying.')
+        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -111,7 +131,10 @@ def query_molmo():
 
 def query_openai(client, model_name, prompt, temperature, max_tokens):
     response = client.chat.completions.create(
-            model=model_name, messages=prompt, temperature=temperature, max_tokens=max_tokens
+        model=model_name,
+        messages=prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
     )
     output_text = response.choices[0].message.content.strip()
     return format_answer(output_text)
@@ -123,12 +146,12 @@ def query_qwen(
     prompt: list,
     image_paths: list,
     device="cuda",
-    max_tokens= MAX_TOKENS
+    max_tokens=MAX_TOKENS,
 ):
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
     inputs = processor(
-        text=prompt,  
+        text=prompt,
         images=images,
         return_tensors="pt",
         padding=True,
@@ -147,33 +170,50 @@ def query_qwen(
     return format_answer(response[0])
 
 
-
-def generate_prompt(model_name: str, question: dict,lang: str, system_message, few_shot_setting: str = 'zero-shot'):
+def generate_prompt(
+    model_name: str,
+    question: dict,
+    lang: str,
+    system_message,
+    few_shot_setting: str = "zero-shot",
+):
     if model_name == "qwen2-7b":
         return parse_qwen_input(
-            question["question"], question["image"], question["options"], lang, system_message, few_shot_setting
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            system_message,
+            few_shot_setting,
         )
     elif model_name == "gpt-4o":
         return parse_openai_input(
-            question["question"], question["image"], question["options"], lang, system_message, few_shot_setting
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            system_message,
+            few_shot_setting,
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
-        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
+        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "pangea":
         # Add pangea querying logic
-        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
+        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "molmo":
         # Add molmo querying logic
-        raise NotImplementedError(f'Model {model_name} not implemented for parsing.')
+        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
 
-def parse_openai_input(question_text, question_image, options_list, lang, system_message, few_shot_setting):
-    '''
+def parse_openai_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+):
+    """
     Outputs: conversation dictionary supported by OpenAI.
-    '''
+    """
     system_message = [{"role": "system", "content": system_message}]
 
     def encode_image(image):
@@ -226,26 +266,28 @@ def parse_openai_input(question_text, question_image, options_list, lang, system
             parsed_options.append(new_text_option)
 
     user_text = [question] + parsed_options
-    user_message = {
-        'role': 'user',
-        'content': user_text
-    }
+    user_message = {"role": "user", "content": user_text}
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message['content'] = fetch_few_shot_examples(lang) + user_message['content']
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
     else:
-        raise ValueError(f'Invalid few_shot_setting: {few_shot_setting}')
+        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     return messages, None
 
-def parse_qwen_input(question_text, question_image, options_list, lang, system_message, few_shot_setting):
-    '''
+
+def parse_qwen_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+):
+    """
     Outputs: conversation dictionary supported by qwen.
-    '''
+    """
     system_message = [{"role": "system", "content": system_message}]
 
     if question_image:
@@ -298,19 +340,18 @@ def parse_qwen_input(question_text, question_image, options_list, lang, system_m
             )  # Puts the option text if it isn't an image.
 
     user_text = [question] + parsed_options
-    user_message = {
-        'role': 'user',
-        'content': user_text
-    }
+    user_message = {"role": "user", "content": user_text}
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message['content'] = fetch_few_shot_examples(lang) + user_message['content']
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
     else:
-        raise ValueError(f'Invalid few_shot_setting: {few_shot_setting}')
+        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     if question_image:
         image_paths = [question_image] + image_paths
