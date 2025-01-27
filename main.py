@@ -71,11 +71,13 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
     # Language
-    if lang != "all":
-        dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    # if lang != "all":
+    #     dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    # else:
+    #     print("evaluating all languages")
     # Level
-    if num_samples is not None:
-        dataset = dataset.select(range(num_samples))
+    # if num_samples is not None:
+    #     dataset = dataset.select(range(num_samples))
     return dataset
 
 
@@ -90,6 +92,7 @@ def evaluate_model(args):
     dataset = load_and_filter_dataset(
         args.dataset, args.selected_langs, args.num_samples
     )
+    print(dataset)
 
     # Evaluate each question
     results = []
@@ -115,7 +118,7 @@ def evaluate_model(args):
     # Save results to file
     output_folder = f"outputs/{args.setting}/mode_{args.model}"
     os.makedirs(output_folder, exist_ok=True)
-    output_path = os.path.join(output_folder, f"results_{lang}.json")
+    output_path = os.path.join(output_folder, f"results.json")
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
 
