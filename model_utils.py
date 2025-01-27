@@ -340,7 +340,7 @@ def parse_qwen_input(
                 new_text_option
             )  # Puts the option text if it isn't an image.
 
-    user_text = [question] + parsed_options
+    user_text = question + parsed_options
     user_message = {"role": "user", "content": user_text}
 
     # Enable few-shot setting
