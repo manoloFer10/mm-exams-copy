@@ -38,7 +38,7 @@ def parse_args():
     )
     parser.add_argument(
         "--selected_langs",
-        type=list,
+        type=str,
         default="all",
         help="list of strings of language codes",
     )
@@ -79,7 +79,7 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     return dataset
 
 
-def evaluate_model(args, lang):
+def evaluate_model(args):
     """
     Run the evaluation pipeline for the specified model.
     """
@@ -87,7 +87,9 @@ def evaluate_model(args, lang):
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
 
     # Load dataset
-    dataset = load_and_filter_dataset(args.dataset, lang, args.num_samples)
+    dataset = load_and_filter_dataset(
+        args.dataset, args.selected_langs, args.num_samples
+    )
 
     # Evaluate each question
     results = []
@@ -124,9 +126,7 @@ def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-    for i, lang in enumerate(args.selected_langs):
-        print(f"Evaluating language: {lang}")
-        evaluate_model(args, lang)
+    evaluate_model(args)
 
 
 if __name__ == "__main__":
