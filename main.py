@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument(
         "--num_samples",
         type=int,
-        default="all",
+        default=None,
         help="number of samples to test",
     )
     parser.add_argument(
@@ -77,7 +77,7 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     return dataset
 
 
-def evaluate_model(args):
+def evaluate_model(args, lang):
     """
     Run the evaluation pipeline for the specified model.
     """
@@ -85,9 +85,7 @@ def evaluate_model(args):
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
 
     # Load dataset
-    dataset = load_and_filter_dataset(
-        args.dataset, args.selected_langs, args.num_samples
-    )
+    dataset = load_and_filter_dataset(args.dataset, lang, args.num_samples)
 
     # Evaluate each question
     results = []
@@ -108,7 +106,7 @@ def evaluate_model(args):
     # Save results to file
     output_folder = f"outputs/{args.setting}/mode_{args.model}"
     os.makedirs(output_folder, exist_ok=True)
-    output_path = os.path.join(output_folder, "results.json")
+    output_path = os.path.join(output_folder, f"results_{lang}.json")
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
 
@@ -119,8 +117,8 @@ def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-
-    evaluate_model(args)
+    for lang in args.selected_langs:
+        evaluate_model(args, lang)
 
 
 if __name__ == "__main__":

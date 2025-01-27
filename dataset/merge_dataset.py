@@ -85,4 +85,4 @@ def merge_datasets(data_dir: str):
 # Example usage
 if __name__ == "__main__":
     merged_dataset = merge_datasets(DATA_ROOT)
-    merge_dataset.save_to_disk("output_dir")
+    merged_dataset.save_to_disk("output_dir")
