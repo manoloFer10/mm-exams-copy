@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument(
         "--selected_langs",
         type=list,
-        default=None,
+        default="all",
         help="list of strings of language codes",
     )
     parser.add_argument(
@@ -71,7 +71,8 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
     # Language
-    dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    if lang != "all":
+        dataset = dataset.filter(lambda sample: sample["language"] == lang)
     # Level
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
@@ -95,7 +96,11 @@ def evaluate_model(args, lang):
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(
-            args.model, question, lang, fetch_system_message(SYSTEM_MESSAGES, lang), args.setting
+            args.model,
+            question,
+            lang,
+            fetch_system_message(SYSTEM_MESSAGES, lang),
+            args.setting,
         )
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
@@ -120,7 +125,7 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     for i, lang in enumerate(args.selected_langs):
-        print("Evaluating language: {lang}")
+        print(f"Evaluating language: {lang}")
         evaluate_model(args, lang)
 
 
