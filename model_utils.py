@@ -381,6 +381,13 @@ def format_answer(answer: str):
         )
 
 
+def fetch_system_message(system_messages: dict[str, str], lang: str) -> str:
+    if lang in system_messages.keys():
+        return system_messages[lang]
+    else:
+        raise ValueError(f"{lang} language code not in SYSTEM_MESSAGES")
+
+
 def fetch_few_shot_examples(lang):
     # TODO: write function.
     raise NotImplementedError(
