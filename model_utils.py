@@ -283,107 +283,81 @@ def parse_openai_input(
     return messages, None
 
 
-def parse_qwen_input(question_text, question_image, options_list):
-    content = []
-    hint = f"The following is a multiple choice question."  # add subject
-    hint += " Please only give the correct option, without any other details or explanations."
-    content.append({"type": "text", "text": hint})
-    if question_image is not None:
-        content.append({"type": "image"})
-        images = [Image.open(question_image)]
+def parse_qwen_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+):
+    """
+    Outputs: conversation dictionary supported by qwen.
+    """
+    system_message = [{"role": "system", "content": system_message}]
+
+    if question_image:
+        question = [
+            {
+                "type": "text",
+                "text": f"Question: {question_text}",
+            },
+            {"type": "image"},
+        ]
     else:
-        images = None
-    question_message = question_text
-    # ignore images on answers for now <- this would be an extra evaluation
-    formatted_options = []
+        question = [
+            {
+                "type": "text",
+                "text": f"Question: {question_text}",
+            }
+        ]
+
+    parsed_options = []
+    only_text_option = {"type": "text", "text": "{text}"}
+    only_image_option = {"type": "image"}
+
+    images_paths = []
     for i, option in enumerate(options_list):
-        letter = chr(ord("A") + i)
-        formatted_options.append(f"{letter}. {option}")
+        option_indicator = f"{i+1})"
+        if option.lower().endswith(".png"):  # Checks if it is a png file
+            # Generating the dict format of the conversation if the option is an image
+            new_image_option = only_image_option.copy()
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
+            new_text_option["text"] = formated_text
 
-    options_text = "\n".join(formatted_options)  # Join options with newlines
-    content.append({"type": "text", "text": options_text})
+            # option delimiter "1)", "2)", ...
+            parsed_options.append(new_text_option)
+            # image for option
+            parsed_options.append(new_image_option)
 
-    # Create the messages list
-    messages = [{"role": "user", "content": content}]
+            # Ads the image for output
+            images_paths.append(option)
 
-    return messages, images
+        else:
+            # Generating the dict format of the conversation if the option is not an image
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(
+                text=option_indicator + option + "\n"
+            )
+            new_text_option["text"] = formated_text
+            parsed_options.append(
+                new_text_option
+            )  # Puts the option text if it isn't an image.
 
+    user_text = [question] + parsed_options
+    user_message = {"role": "user", "content": user_text}
 
-# def parse_qwen_input(
-#     question_text, question_image, options_list, lang, system_message, few_shot_setting
-# ):
-#     """
-#     Outputs: conversation dictionary supported by qwen.
-#     """
-#     system_message = [{"role": "system", "content": system_message}]
+    # Enable few-shot setting
+    if few_shot_setting == "few-shot":
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
+        messages = [system_message, user_message]
+    elif few_shot_setting == "zero-shot":
+        messages = [system_message, user_message]
+    else:
+        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-#     if question_image:
-#         question = [
-#             {
-#                 "type": "text",
-#                 "text": f"Question: {question_text}",
-#             },
-#             {"type": "image"},
-#         ]
-#     else:
-#         question = [
-#             {
-#                 "type": "text",
-#                 "text": f"Question: {question_text}",
-#             }
-#         ]
+    if question_image:
+        images_paths = [question_image] + images_paths
 
-#     parsed_options = []
-#     only_text_option = {"type": "text", "text": "{text}"}
-#     only_image_option = {"type": "image"}
-
-#     images_paths = []
-#     for i, option in enumerate(options_list):
-#         option_indicator = f"{i+1})"
-#         if option.lower().endswith(".png"):  # Checks if it is a png file
-#             # Generating the dict format of the conversation if the option is an image
-#             new_image_option = only_image_option.copy()
-#             new_text_option = only_text_option.copy()
-#             formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-#             new_text_option["text"] = formated_text
-
-#             # option delimiter "1)", "2)", ...
-#             parsed_options.append(new_text_option)
-#             # image for option
-#             parsed_options.append(new_image_option)
-
-#             # Ads the image for output
-#             images_paths.append(option)
-
-#         else:
-#             # Generating the dict format of the conversation if the option is not an image
-#             new_text_option = only_text_option.copy()
-#             formated_text = new_text_option["text"].format(
-#                 text=option_indicator + option + "\n"
-#             )
-#             new_text_option["text"] = formated_text
-#             parsed_options.append(
-#                 new_text_option
-#             )  # Puts the option text if it isn't an image.
-
-#     user_text = [question] + parsed_options
-#     user_message = {"role": "user", "content": user_text}
-
-#     # Enable few-shot setting
-#     if few_shot_setting == "few-shot":
-#         user_message["content"] = (
-#             fetch_few_shot_examples(lang) + user_message["content"]
-#         )
-#         messages = [system_message, user_message]
-#     elif few_shot_setting == "zero-shot":
-#         messages = [system_message, user_message]
-#     else:
-#         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-#     if question_image:
-#         image_paths = [question_image] + image_paths
-
-#     return messages, images_paths
+    return messages, images_paths
 
 
 def format_answer(answer: str):
