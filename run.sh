@@ -1,7 +1,7 @@
 export PYTHONPATH=$(pwd)
 
 python main.py \
---model qwen \
+--model qwen2-7b \
 --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/qwen2-vl-7b-instruct/ \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset/test.hf \
 --num_samples 3
