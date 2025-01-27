@@ -3,7 +3,6 @@ import numpy as np
 from datasets import load_from_disk
 import os
 import random
-from typing import List, Dict
 import json
 from tqdm import tqdm
 
@@ -12,7 +11,7 @@ from model_utils import (
     query_model,
     generate_prompt,
     SUPPORTED_MODELS,
-    SYSTEM_MESSAGE
+    SYSTEM_MESSAGES
 )
 
 
@@ -40,7 +39,7 @@ def parse_args():
         "--selected_langs",
         type=list,
         default=None,
-        help="list of strings of languages",
+        help="list of strings of language codes",
     )
     parser.add_argument(
         "--api_key", 
@@ -100,7 +99,7 @@ def evaluate_model(args):
     results = []
     for question in tqdm(dataset):
         # Generate prompt. Note that only local models will need image_paths separatedly.
-        prompt, image_paths = generate_prompt(args.model, question, args.lang, SYSTEM_MESSAGE, args.setting)
+        prompt, image_paths = generate_prompt(args.model, question, args.lang, SYSTEM_MESSAGES[args.lang], args.setting)
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
 

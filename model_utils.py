@@ -10,8 +10,26 @@ MAX_TOKENS = 1  # Only output the option chosen.
 
 SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "maya", "llama"]
 
-# TODO: System message should be a dictionary with language-codes as keys and system messages in that language as values.
-SYSTEM_MESSAGE = "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 (respectively B) is correct, then you should return the number 2. \n"
+# Update manually with supported languages translation
+SYSTEM_MESSAGES = {
+    "en": "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 is correct, then you should return the number 2.",
+    "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید تنها با شماره صحیح پاسخ را بدهید. به عنوان مثال، اگر گزینه‌های ۱، ۲، ۳، ۴ داده شده باشد و گزینه ۲ درست باشد، باید عدد ۲ را بازگردانید.",
+    "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correcto de la respuesta. Por ejemplo, si se te dan las opciones 1, 2, 3, 4 y la opción 2 es correcta, entonces debes devolver el número 2.",
+    "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে। উদাহরণস্বরূপ, যদি আপনাকে ১, ২, ৩, ৪ বিকল্প দেওয়া হয় এবং বিকল্প ২ সঠিক হয়, তবে আপনাকে সংখ্যা ২ ফেরত দিতে হবে।",
+    "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से ही उत्तर देना चाहिए। उदाहरण के लिए, यदि आपको विकल्प 1, 2, 3, 4 दिए गए हैं और विकल्प 2 सही है, तो आपको नंबर 2 लौटाना चाहिए।",
+    "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu. Pavyzdžiui, jei pateikiami variantai 1, 2, 3, 4, o teisingas variantas yra 2, turite grąžinti skaičių 2.",
+    "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答。例如，如果给出的选项是1, 2, 3, 4，而选项2是正确的，那么您应该返回数字2。",
+    "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord. Bijvoorbeeld, als je de opties 1, 2, 3, 4 krijgt en optie 2 is correct, dan moet je nummer 2 retourneren.",
+    "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి. ఉదాహరణకు, మీకు 1, 2, 3, 4 ఎంపికలు ఇస్తే మరియు ఎంపిక 2 సరైనది అయితే, మీరు సంఖ్య 2ను తిరిగి ఇవ్వాలి.",
+    "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише правильним номером відповіді. Наприклад, якщо вам дано варіанти 1, 2, 3, 4, і правильним є варіант 2, ви повинні повернути номер 2.",
+    "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ। ਉਦਾਹਰਣ ਲਈ, ਜੇ ਤੁਹਾਨੂੰ ਵਿਕਲਪ 1, 2, 3, 4 ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਵਿਕਲਪ 2 ਸਹੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਨੰਬਰ 2 ਵਾਪਸ ਕਰਨਾ ਚਾਹੀਦਾ ਹੈ।",
+    "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba správnym číslom odpovede. Napríklad, ak sú vám dané možnosti 1, 2, 3, 4 a správnou možnosťou je 2, mali by ste vrátiť číslo 2.",
+    "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko poprawnym numerem odpowiedzi. Na przykład, jeśli podano opcje 1, 2, 3, 4, a poprawną opcją jest 2, powinieneś zwrócić liczbę 2.",
+    "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze správným číslem odpovědi. Například, pokud dostanete možnosti 1, 2, 3, 4 a možnost 2 je správná, měli byste vrátit číslo 2.",
+    "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten. Wenn Ihnen beispielsweise die Optionen 1, 2, 3, 4 gegeben werden und Option 2 korrekt ist, sollten Sie die Nummer 2 zurückgeben.",
+    "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
+    "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।"
+}
 
 
 def initialize_model(
