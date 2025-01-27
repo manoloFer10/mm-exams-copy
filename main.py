@@ -117,7 +117,8 @@ def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-    for lang in args.selected_langs:
+    for i, lang in enumerate(args.selected_langs):
+        print("Evaluating language: {lang}")
         evaluate_model(args, lang)
 
 

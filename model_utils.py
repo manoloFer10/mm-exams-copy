@@ -64,7 +64,7 @@ def initialize_model(
     if model_name == "qwen2-7b":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
-            torch_dtype=torch.float16,
+            # torch_dtype=torch.float16,
             temperature=temperature,
             device_map=device,
             torch_dtype=torch.bfloat16,
@@ -74,6 +74,7 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(
             Path(model_path) / "processor", local_files_only=True
         )
+        print(f"Model loaded from {model_path}")
     elif model_name == "pangea":
         # Add Pangea initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
