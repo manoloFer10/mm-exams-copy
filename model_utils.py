@@ -386,3 +386,9 @@ def fetch_few_shot_examples(lang):
     raise NotImplementedError(
         "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
     )
+
+def fetch_system_message(system_messages:dict[str,str], lang: str)-> str:
+    if lang in system_messages.keys():
+        return system_messages[lang]
+    else:
+        raise ValueError(f'{lang} language code not in SYSTEM_MESSAGES')

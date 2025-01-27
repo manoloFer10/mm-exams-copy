@@ -1,8 +1,8 @@
 # Run evaluations, experiments and plots here
 
 import argparse
-from model_utils import SUPPORTED_MODELS
-from datasets import load_dataset
+import pandas as pd
+from datasets import load_dataset, Dataset
 from eval_utils import (
     EVALUATION_STYLES,
     perform_complete_evaluation,
@@ -34,8 +34,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def run_evaluation(results, args):
-    style = args.evaluation_style
+def run_evaluation(results, style):
 
     if style not in EVALUATION_STYLES: raise NameError(f'{style} is not a supported evaluation style. Evaluation styles: {EVALUATION_STYLES}')
 
@@ -48,17 +47,30 @@ def run_evaluation(results, args):
     if style == 'experiments':
         perform_experiments(results)
 
+def load_dataset_from_entry(args):
+
+    if isinstance(args.results_dataset, dict):
+        df_dataset = pd.DataFrame(args.results_dataset)
+    elif isinstance(args.results_dataset, str):
+        df_dataset = pd.read_json(args.results_dataset)
+    elif isinstance(args.results_dataset, Dataset): 
+        results = load_dataset(args.results_dataset)['train']
+        df_dataset = results.to_pandas()
+    else:
+        raise TypeError(f'Unexpected dataset format: {args.results_dataset}')       
+
+    if args.num_samples != 'all':
+        df_dataset = df_dataset.head(args.num_samples)
+    
+    return df_dataset
 
 def main():
     args = parse_args()
 
     # Load dataset.
-    if args.num_samples == 'all':
-        results = load_dataset(args.results_dataset)['train']
-    else: 
-        results = load_dataset(args.results_dataset)['train'].select(range(int(args.num_samples)))
-    
-    run_evaluation(results, args)
+    results = load_dataset_from_entry(args)
+
+    run_evaluation(results, args.style)
     
 if __name__ == '__main__':
     main()

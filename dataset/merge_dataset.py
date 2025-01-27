@@ -1,6 +1,7 @@
 from datasets import Dataset, concatenate_datasets, Features, Value, Sequence
 from pathlib import Path
 import os
+import regex as re
 
 DATA_ROOT = Path("data/")
 
@@ -25,6 +26,19 @@ expected_features = Features(
         "image": Value("string"),
     }
 )
+
+def check_options_format(question):
+    # TODO: should update this in order to consolidate wrapper categories for 'category_en'.
+    pattern = r"^\s*[A-Za-z][^\w\s]*\s*"
+    
+    question["options"] = [
+        re.sub(pattern, "", option, flags=re.IGNORECASE) if re.match(pattern, option, flags=re.IGNORECASE)
+        else option
+        for option in question["options"]
+    ]
+
+    return question
+
 
 
 def merge_datasets(data_dir: str):
@@ -52,6 +66,9 @@ def merge_datasets(data_dir: str):
                 continue
             print(f"Loading dataset from {json_files[0]}")
             dataset = Dataset.from_json(str(json_files[0]))
+
+            #check for already formatted option data. If that's the case, revert it.
+            dataset = dataset.map(check_options_format)
 
             # Map image paths
             # check that there is an image folder with iamges, if not pass for now.
