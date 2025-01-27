@@ -28,9 +28,9 @@ expected_features = Features(
 )
 
 def check_options_format(question):
+    # TODO: should update this in order to consolidate wrapper categories for 'category_en'.
     pattern = r"^\s*[A-Za-z][^\w\s]*\s*"
     
-    # Process each option
     question["options"] = [
         re.sub(pattern, "", option, flags=re.IGNORECASE) if re.match(pattern, option, flags=re.IGNORECASE)
         else option
