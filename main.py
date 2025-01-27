@@ -38,8 +38,8 @@ def parse_args():
     )
     parser.add_argument(
         "--selected_langs",
-        type=str,
-        default="all",
+        nargs="+",
+        default=["all"],
         help="list of strings of language codes",
     )
     parser.add_argument(
