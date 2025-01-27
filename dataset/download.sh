@@ -9,4 +9,5 @@
 #SBATCH --mem=20GB
 #SBATCH --time=4:00:00
 
+export PYTHONPATH=$(pwd)
 python dataset/download.sh
