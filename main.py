@@ -10,6 +10,7 @@ from model_utils import (
     initialize_model,
     query_model,
     generate_prompt,
+    fetch_system_message,
     SUPPORTED_MODELS,
     SYSTEM_MESSAGES,
 )
@@ -92,8 +93,9 @@ def evaluate_model(args, lang):
     for question in tqdm(dataset):
         lang = question["language"]
         # Generate prompt. Note that only local models will need image_paths separatedly.
+
         prompt, image_paths = generate_prompt(
-            args.model, question, lang, SYSTEM_MESSAGES[lang], args.setting
+            args.model, question, lang, fetch_system_message(SYSTEM_MESSAGES, lang), args.setting
         )
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
