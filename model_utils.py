@@ -354,7 +354,7 @@ def parse_qwen_input(
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     if question_image:
-        image_paths = [question_image] + image_paths
+        images_paths = [question_image] + images_paths
 
     return messages, images_paths
 
