@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from datasets import Dataset
 
 EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments']
 
@@ -190,22 +191,14 @@ LANGUAGES = {
   "zu": "Zulu"
 }
 
-def perform_complete_evaluation(dataset):
+def perform_complete_evaluation(df_dataset):
 
-    perform_accuracy_evaluation(dataset)
-    perform_descriptive_statistics(dataset)
-    perform_experiments(dataset)
+    perform_accuracy_evaluation(df_dataset)
+    perform_descriptive_statistics(df_dataset)
+    perform_experiments(df_dataset)
 
-def perform_accuracy_evaluation(dataset, output_folder = None, file_name = None):
+def perform_accuracy_evaluation(df_dataset, output_folder = None):
     code2lang = LANGUAGES
-    
-    #Prepare data in pandas 
-    if isinstance(dataset, dict):
-        df_dataset = pd.DataFrame(dataset)
-    elif isinstance(dataset, str):
-        df_dataset = pd.read_json(dataset)
-    else: 
-        df_dataset = dataset.to_pandas()
 
     if 'language' in df_dataset.columns:
         df_dataset['language'] = df_dataset['language'].map(code2lang)
@@ -216,33 +209,47 @@ def perform_accuracy_evaluation(dataset, output_folder = None, file_name = None)
 
 
     # Group by language and calculate accuracies
-    accuracy_df = df_dataset[model_names].eq(df_dataset['answer'], axis=0)
-    accuracies_by_lang  = accuracy_df.groupby(df_dataset['language']).mean()
-    overall_accuracies = accuracy_df.mean()
-    accuracies_by_lang.loc['Overall'] = overall_accuracies
+    group_by_and_score(df_dataset, 'language', model_names,output_folder)
 
-    # Save
-    if not output_folder:
-        output_folder = "eval_results/results_accuracy_all_langs"
-    os.makedirs(output_folder, exist_ok=True)
-    if not file_name:
-        file_name = "accuracy_results.csv"
-    output_file = os.path.join(output_folder, file_name)
-    accuracies_by_lang.to_csv(output_file)
+    # Group by country and calculate accuracies
+    group_by_and_score(df_dataset, 'country', model_names, output_folder)
+
+    # Calculate accuracies by language and category for each model.
+    for model in model_names:
+        accuracy_df = df_dataset[model] == df_dataset['answer']
+
+        accuracies = (
+            accuracy_df.groupby([df_dataset['language'], df_dataset['category']])
+            .mean()
+            .unstack(fill_value=0) 
+        )
+        os.makedirs(output_folder, exist_ok=True)
+        file_name = model + "accuracy_language&category.csv"
+        output_file = os.path.join(output_folder, file_name)
+        accuracies.to_csv(output_file)
+
+        
 
     print(f"Accuracy results saved to: {output_file}")
 
+def group_by_and_score(df_dataset, group, model_names, output_folder):
+    
+    #Group and calculate accuracy
+    accuracy_df = df_dataset[model_names].eq(df_dataset['answer'], axis=0)
+    accuracies_by_lang  = accuracy_df.groupby(df_dataset[group]).mean()
+    overall_accuracies = accuracy_df.mean()
+    accuracies_by_lang.loc['Overall'] = overall_accuracies
+    
+    #Save
+    if not output_folder:
+        output_folder = "eval_results/results_accuracy"
+    os.makedirs(output_folder, exist_ok=True)
+    file_name = "accuracy_across_" + group + ".csv"
+    output_file = os.path.join(output_folder, file_name)
+    accuracies_by_lang.to_csv(output_file)
 
-def perform_descriptive_statistics(dataset):
+def perform_descriptive_statistics(df_dataset):
     code2lang = LANGUAGES
-
-    #Prepare data in pandas 
-    if isinstance(dataset, dict):
-        df_dataset = pd.DataFrame(dataset)
-    elif isinstance(dataset, str):
-        df_dataset = pd.read_json(dataset)
-    else: 
-        df_dataset = dataset.to_pandas()
 
     output_folder = "eval_results/statistics"
     os.makedirs(output_folder, exist_ok=True)
@@ -265,12 +272,28 @@ def perform_descriptive_statistics(dataset):
     #         length_stats = df_dataset[field].dropna().apply(len).describe()
     #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
-    # Correct answer distribution
+    # Answer distribution
     if 'answer' in df_dataset.columns:
         answer_stats = df_dataset['answer'].value_counts().reset_index()
-        answer_stats.columns = ['answer', 'counts']
-        answer_stats['proportion'] = answer_stats['counts'] / answer_stats['counts'].sum()
-        answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=False)
+        answer_stats.columns = ['answer', 'correct answer counts']
+        answer_stats = answer_stats.set_index('answer')
+        answer_stats['proportion correct answer'] = answer_stats['correct answer counts'] / answer_stats['correct answer counts'].sum()
+
+        model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
+        for col in model_columns:
+            model_answer_distribution = df_dataset[col].value_counts().reset_index()
+            model_answer_distribution.columns = ['answer', 'counts ' + col]
+            model_answer_distribution = model_answer_distribution.set_index('answer')
+            model_answer_distribution['proportion ' + col] = model_answer_distribution['counts ' + col] / model_answer_distribution['counts ' + col].sum()
+            
+            answer_stats = pd.merge(answer_stats, 
+                                    model_answer_distribution, 
+                                    left_index=True, 
+                                    right_index=True,  
+                                    how='outer')
+
+        
+        answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=True)
 
     # Image metadata distribution
     if 'image_information' in df_dataset.columns:
@@ -284,16 +307,58 @@ def perform_descriptive_statistics(dataset):
         image_type_stats['proportion'] = image_type_stats['counts'] / image_type_stats['counts'].sum()
         image_type_stats.to_csv(os.path.join(output_folder, "image_type_breakdown.csv"), index=False)
 
+    # image_type, image_information and category_en distributions per language
+    get_distribution_table(df_dataset, 'category_en', code2lang, output_folder)
+    get_distribution_table(df_dataset, 'image_type', code2lang, output_folder)
+    get_distribution_table(df_dataset, 'image_information', code2lang, output_folder)
+
     print(f"Overall statistics saved to folder: {output_folder}")
 
-def perform_experiments(dataset):
+def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
 
-    image_blindess_experiment(dataset)
+    #useful for image fields
+    df = df[df['category'].notna() & (df['category'] != '')]
+
+    pivot_table = df.pivot_table(
+        index='language', 
+        columns= field ,  
+        aggfunc='size',  
+        fill_value=0  
+    )
+
+    pivot_table.index = pivot_table.index.map(lambda x: code2lang.get(x, x))
+    pivot_table.to_csv(os.path.join(output_folder, f"{field}_per_language.csv"), index=False)
+
+
+def perform_experiments(df_dataset):
+
+    image_blindess_experiment(df_dataset)
+    # image_captioning_experiment
     
 
-def image_blindess_experiment(dataset):
+def image_blindess_experiment(df_dataset):
     #Just filter data by 'useful' and run accuracy eval
-    image_blindness_dataset = dataset[dataset['image_information'] == 'useful']
+    image_blindness_dataset = df_dataset[df_dataset['image_information'] == 'useful']
     perform_accuracy_evaluation(image_blindness_dataset, 
                                 output_folder='eval_results/experiments/image_blidness',
                                 file_name = 'image_blidness_results.csv')
+    
+def perform_plots():
+    # TODO
+    results_folder = 'eval_results'
+    accuracy_folder = results_folder + '/results_accuracy'
+    statistics_folder = results_folder +'/statistics'
+    output_dir = 'eval_results/plots'
+
+    plottable_files_stats =[] # should we somehow plot accuracy results? maybe somekind of spider graph among languages for each model.
+
+    if not os.path.exists(accuracy_folder): FileNotFoundError(f"The directory '{accuracy_folder}' does not exist.")
+    if not os.path.exists(statistics_folder): FileNotFoundError(f"The directory '{statistics_folder}' does not exist.")
+
+    for result_data in plottable_files_stats:
+        element_path = os.path.join(statistics_folder, result_data)
+        plot_data(element_path, output_dir)
+
+def plot_data(path: str, output_dir: str):
+    #TODO: write a function that given a path, creates and saves in output_dir its plotted data.
+    raise NotImplementedError('function plot_data not implemented yet.')
