@@ -60,7 +60,7 @@ def load_dataset_from_entry(args):
         raise TypeError(f'Unexpected dataset format: {args.results_dataset}')       
 
     if args.num_samples != 'all':
-        df_dataset = df_dataset.head(args.num_samples)
+        df_dataset = df_dataset.head(int(args.num_samples))
     
     return df_dataset
 
@@ -70,7 +70,7 @@ def main():
     # Load dataset.
     results = load_dataset_from_entry(args)
 
-    run_evaluation(results, args.style)
+    run_evaluation(results, args.evaluation_style)
     
 if __name__ == '__main__':
     main()
