@@ -110,7 +110,7 @@ def evaluate_model(args):
         # Query model
         prediction = query_model(args.model, model, processor, prompt, image_paths)
 
-        question["prediction_by_" + model] = prediction
+        question["prediction_by_" + args.model] = prediction
         # question_json['prompt_used'] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)

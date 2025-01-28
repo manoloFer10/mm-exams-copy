@@ -4,6 +4,7 @@ from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
+from torch.cuda.amp import autocast
 
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
@@ -65,7 +66,7 @@ def initialize_model(
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
             # torch_dtype=torch.float16,
-            temperature=temperature,
+            # temperature=temperature,
             device_map=device,
             torch_dtype=torch.bfloat16,
             # attn_implementation="flash_attention_2",
@@ -161,7 +162,8 @@ def query_qwen(
     ).to(device)
 
     # Generate response
-    output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
+    with autocast("cuda"):
+        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
@@ -286,6 +288,7 @@ def parse_openai_input(
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     return messages, None
+
 
 def parse_qwen_input(
     question_text, question_image, options_list, lang, system_message, few_shot_setting
