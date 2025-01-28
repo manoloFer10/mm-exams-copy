@@ -151,8 +151,10 @@ def query_qwen(
 ):
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
+    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+    
     inputs = processor(
-        text=prompt,
+        text=[text_prompt],
         images=images,
         return_tensors="pt",
         padding=True,
