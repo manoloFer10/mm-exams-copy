@@ -147,7 +147,7 @@ def query_qwen(
     prompt: list,
     image_paths: list,
     device="cuda",
-    max_tokens=MAX_TOKENS,
+    max_tokens=MAX_TOKENS
 ):
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
@@ -170,6 +170,9 @@ def query_qwen(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
+    for img in images:
+        img.close()
+    torch.cuda.empty_cache()
     return format_answer(response[0])
 
 
