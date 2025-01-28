@@ -152,7 +152,7 @@ def query_qwen(
     images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
-    
+
     inputs = processor(
         text=[text_prompt],
         images=images,
@@ -284,41 +284,7 @@ def parse_openai_input(
 
     return messages, None
 
-
 def parse_qwen_input(
-    question_text,
-    question_image,
-    options_list,
-    lang,
-    system_message,
-    few_shot_setting,
-):
-    content = []
-    #    hint = f"The following is a multiple choice question."  # add subject
-    hint = system_message
-    content.append({"type": "text", "text": hint})
-    if question_image is not None:
-        content.append({"type": "image"})
-        images = [Image.open(question_image)]
-    else:
-        images = None
-    question_message = question_text
-    # ignore images on answers for now <- this would be an extra evaluation
-    formatted_options = []
-    for i, option in enumerate(options_list):
-        letter = chr(ord("A") + i)
-        formatted_options.append(f"{letter}. {option}")
-
-    options_text = "\n".join(formatted_options)  # Join options with newlines
-    content.append({"type": "text", "text": options_text})
-
-    # Create the messages list
-    messages = [{"role": "user", "content": content}]
-
-    return messages, images
-
-
-def parse_qwen_input_(
     question_text, question_image, options_list, lang, system_message, few_shot_setting
 ):
     """
