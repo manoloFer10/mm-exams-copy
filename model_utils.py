@@ -10,7 +10,7 @@ from torch.cuda.amp import autocast
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "gemini-1.5-flash", "claude-3-5-haiku-latest"] #haiku does not support image input
+SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "gemini-1.5-flash", "claude-3-5-sonnet-latest"] #haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -91,7 +91,7 @@ def initialize_model(
         )
         model = client
         processor = None
-    elif model_name == 'claude-3-5-haiku-latest':
+    elif model_name == 'claude-3-5-sonnet-latest':
         client = Anthropic(api_key=api_key)
         model = client
         processor = None
@@ -125,7 +125,7 @@ def query_model(
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
-    elif model_name == 'claude-3-5-haiku-latest':
+    elif model_name == 'claude-3-5-sonnet-latest':
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -238,7 +238,7 @@ def generate_prompt(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == 'claude-3-5-haiku-latest':
+    elif model_name == 'claude-3-5-sonnet-latest':
         return parse_anthropic_input(
             question["question"],
             question["image"],
@@ -337,7 +337,7 @@ def parse_anthropic_input(
     """
     Outputs: conversation dictionary supported by Anthropic.
     """
-    # review, claude-3-5-haiku-latest might not support conversation items inside content
+    # review, claude-3-5-sonnet-latest might not support conversation items inside content
     system_message = {"role": "system", "content": system_message}
 
     def encode_image(image_path):
