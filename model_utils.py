@@ -8,7 +8,7 @@ from openai import OpenAI
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b"]
+SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "gemini-1.5-flash"]
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -85,6 +85,13 @@ def initialize_model(
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
+    elif model_name == 'gemini-1.5-flash':
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+        model = client
+        processor = None
     else:
         raise NotImplementedError(
             f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
@@ -97,7 +104,7 @@ def query_model(
     model,
     processor,
     prompt: list,
-    images=None,
+    images,
     device: str = "cuda",
     temperature=TEMPERATURE,
     max_tokens=MAX_TOKENS,
@@ -113,7 +120,7 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name == "gpt-4o":
+    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -147,7 +154,7 @@ def query_qwen(
     prompt: list,
     image_paths: list,
     device="cuda",
-    max_tokens=MAX_TOKENS,
+    max_tokens=MAX_TOKENS
 ):
     # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
     try:
@@ -182,6 +189,9 @@ def query_qwen(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
+    for img in images:
+        img.close()
+    torch.cuda.empty_cache()
     return format_answer(response[0])
 
 
@@ -201,7 +211,7 @@ def generate_prompt(
             system_message,
             few_shot_setting,
         )
-    elif model_name == "gpt-4o":
+    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
         return parse_openai_input(
             question["question"],
             question["image"],

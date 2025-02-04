@@ -44,7 +44,7 @@ LANGUAGES = {
   "el": "Greek, Modern (1453-)",
   "en": "English",
   "eo": "Esperanto",
-  "es": "Spanish; Castilian",
+  "es": "Spanish",
   "et": "Estonian",
   "eu": "Basque",
   "fa": "Persian",
@@ -193,11 +193,11 @@ LANGUAGES = {
 
 def perform_complete_evaluation(df_dataset):
 
-    perform_accuracy_evaluation(df_dataset)
+    perform_accuracy_evaluation(df_dataset, output_folder='eval_results/results_accuracy')
     perform_descriptive_statistics(df_dataset)
-    perform_experiments(df_dataset)
+    print('not implemented yet: perform_experiments(df_dataset)')
 
-def perform_accuracy_evaluation(df_dataset, output_folder = None):
+def perform_accuracy_evaluation(df_dataset, output_folder):
     code2lang = LANGUAGES
 
     if 'language' in df_dataset.columns:
@@ -209,7 +209,7 @@ def perform_accuracy_evaluation(df_dataset, output_folder = None):
 
 
     # Group by language and calculate accuracies
-    group_by_and_score(df_dataset, 'language', model_names,output_folder)
+    group_by_and_score(df_dataset, 'language', model_names, output_folder)
 
     # Group by country and calculate accuracies
     group_by_and_score(df_dataset, 'country', model_names, output_folder)
@@ -219,12 +219,12 @@ def perform_accuracy_evaluation(df_dataset, output_folder = None):
         accuracy_df = df_dataset[model] == df_dataset['answer']
 
         accuracies = (
-            accuracy_df.groupby([df_dataset['language'], df_dataset['category']])
+            accuracy_df.groupby([df_dataset['language'], df_dataset['category_en']])
             .mean()
             .unstack(fill_value=0) 
         )
         os.makedirs(output_folder, exist_ok=True)
-        file_name = model + "accuracy_language&category.csv"
+        file_name = model + "_accuracy_language&category.csv"
         output_file = os.path.join(output_folder, file_name)
         accuracies.to_csv(output_file)
 
@@ -255,14 +255,15 @@ def perform_descriptive_statistics(df_dataset):
     os.makedirs(output_folder, exist_ok=True)
 
     # Frequency Tables
-    categorical_fields = ['language_full', 'country', 'level', 'category_en', 'image_type'] # Manu: excluded 'category_original_lang' because it will be endless.
+    categorical_fields = ['language', 'country', 'level', 'category_en', 'image_type', 'image_information'] # Manu: excluded 'category_original_lang' because it will be endless.
     for field in categorical_fields:
         if field in df_dataset.columns:
             freq_table = df_dataset[field].value_counts().reset_index()
             freq_table.columns = [field, 'counts']
             freq_table['proportion'] = freq_table['counts'] / freq_table['counts'].sum()
-            if 'language' in freq_table.columns:
-                freq_table['language'] = freq_table['language'].map(code2lang)
+             # Map language codes to names if the column is 'language'
+            # if field == 'language':
+            #     freq_table['full_lang'] = freq_table[field].map(code2lang)
             freq_table.to_csv(os.path.join(output_folder, f"{field}_frequency.csv"), index=False)
 
     #  Length Statistics. Manu: do we really need these??
@@ -295,17 +296,6 @@ def perform_descriptive_statistics(df_dataset):
         
         answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=True)
 
-    # Image metadata distribution
-    if 'image_information' in df_dataset.columns:
-        image_info_stats = df_dataset['image_information'].value_counts().reset_index()
-        image_info_stats.columns = ['image_information', 'counts']
-        image_info_stats['proportion'] = image_info_stats['counts'] / image_info_stats['counts'].sum()
-        image_info_stats.to_csv(os.path.join(output_folder, "image_information_breakdown.csv"), index=False)
-    if 'image_type' in df_dataset.columns:
-        image_type_stats = df_dataset['image_type'].value_counts().reset_index()
-        image_type_stats.columns = ['image_type', 'counts']
-        image_type_stats['proportion'] = image_type_stats['counts'] / image_type_stats['counts'].sum()
-        image_type_stats.to_csv(os.path.join(output_folder, "image_type_breakdown.csv"), index=False)
 
     # image_type, image_information and category_en distributions per language
     get_distribution_table(df_dataset, 'category_en', code2lang, output_folder)
@@ -317,7 +307,7 @@ def perform_descriptive_statistics(df_dataset):
 def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
 
     #useful for image fields
-    df = df[df['category'].notna() & (df['category'] != '')]
+    df = df[df[field].notna() & (df[field] != '')]
 
     pivot_table = df.pivot_table(
         index='language', 
@@ -327,7 +317,7 @@ def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output
     )
 
     pivot_table.index = pivot_table.index.map(lambda x: code2lang.get(x, x))
-    pivot_table.to_csv(os.path.join(output_folder, f"{field}_per_language.csv"), index=False)
+    pivot_table.to_csv(os.path.join(output_folder, f"{field}_per_language.csv"), index=True)
 
 
 def perform_experiments(df_dataset):
