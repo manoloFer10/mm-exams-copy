@@ -7,3 +7,5 @@ results/
 outputs/
 slurm/
 __pycache__/
+tokens_mm_exams.json
+testing_models.py
