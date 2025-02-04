@@ -1,8 +1,9 @@
 import os
 import pandas as pd
-from datasets import Dataset
+import numpy as np
+import matplotlib.pyplot as plt
 
-EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments']
+EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments', 'plotting']
 
 LANGUAGES = {
   "aa": "Afar",
@@ -214,6 +215,12 @@ def perform_accuracy_evaluation(df_dataset, output_folder):
     # Group by country and calculate accuracies
     group_by_and_score(df_dataset, 'country', model_names, output_folder)
 
+    # Group by level and calculate accuracies
+    group_by_and_score(df_dataset, 'level', model_names, output_folder)
+
+    # Group by category_en and calculate accuracies
+    group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
+
     # Calculate accuracies by language and category for each model.
     for model in model_names:
         accuracy_df = df_dataset[model] == df_dataset['answer']
@@ -273,36 +280,34 @@ def perform_descriptive_statistics(df_dataset):
     #         length_stats = df_dataset[field].dropna().apply(len).describe()
     #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
+
     # Answer distribution
     if 'answer' in df_dataset.columns:
-        answer_stats = df_dataset['answer'].value_counts().reset_index()
-        answer_stats.columns = ['answer', 'correct answer counts']
-        answer_stats = answer_stats.set_index('answer')
-        answer_stats['proportion correct answer'] = answer_stats['correct answer counts'] / answer_stats['correct answer counts'].sum()
+        answer_stats = calculate_distribution(df_dataset, 'answer')
+        answer_stats.columns = ['correct answer counts', 'proportion correct answer']
 
         model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
-        for col in model_columns:
-            model_answer_distribution = df_dataset[col].value_counts().reset_index()
-            model_answer_distribution.columns = ['answer', 'counts ' + col]
-            model_answer_distribution = model_answer_distribution.set_index('answer')
-            model_answer_distribution['proportion ' + col] = model_answer_distribution['counts ' + col] / model_answer_distribution['counts ' + col].sum()
-            
-            answer_stats = pd.merge(answer_stats, 
-                                    model_answer_distribution, 
-                                    left_index=True, 
-                                    right_index=True,  
-                                    how='outer')
-
-        
+        distributions = [calculate_distribution(df_dataset, col) for col in model_columns]
+        answer_stats = pd.concat([answer_stats] + distributions, axis=1)
         answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=True)
+    
 
-
-    # image_type, image_information and category_en distributions per language
+    # image_type, image_information, level and category_en distributions per language
     get_distribution_table(df_dataset, 'category_en', code2lang, output_folder)
     get_distribution_table(df_dataset, 'image_type', code2lang, output_folder)
+    get_distribution_table(df_dataset, 'level', code2lang, output_folder)
     get_distribution_table(df_dataset, 'image_information', code2lang, output_folder)
 
     print(f"Overall statistics saved to folder: {output_folder}")
+
+def calculate_distribution(df, column_name):
+    """Calculate the distribution and proportion of answers in a given column."""
+    distribution = df[column_name].value_counts().reset_index()
+    distribution.columns = ['answer', f'counts {column_name}']
+    distribution = distribution.set_index('answer')
+    distribution[f'proportion {column_name}'] = distribution[f'counts {column_name}'] / distribution[f'counts {column_name}'].sum()
+    distribution = distribution.round(2).astype(str)
+    return distribution
 
 def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
 
@@ -315,6 +320,8 @@ def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output
         aggfunc='size',  
         fill_value=0  
     )
+    overall_counts = pivot_table.sum()
+    pivot_table.loc['Overall'] = overall_counts
 
     pivot_table.index = pivot_table.index.map(lambda x: code2lang.get(x, x))
     pivot_table.to_csv(os.path.join(output_folder, f"{field}_per_language.csv"), index=True)
@@ -334,21 +341,180 @@ def image_blindess_experiment(df_dataset):
                                 file_name = 'image_blidness_results.csv')
     
 def perform_plots():
-    # TODO
-    results_folder = 'eval_results'
-    accuracy_folder = results_folder + '/results_accuracy'
-    statistics_folder = results_folder +'/statistics'
     output_dir = 'eval_results/plots'
 
-    plottable_files_stats =[] # should we somehow plot accuracy results? maybe somekind of spider graph among languages for each model.
+    #Spider graph; model accuracy by lang
+    generate_spidergraph('eval_results/results_accuracy/accuracy_across_language.csv', 'language', output_dir)
+    generate_spidergraph('eval_results/results_accuracy/accuracy_across_level.csv', 'level', output_dir)
 
-    if not os.path.exists(accuracy_folder): FileNotFoundError(f"The directory '{accuracy_folder}' does not exist.")
-    if not os.path.exists(statistics_folder): FileNotFoundError(f"The directory '{statistics_folder}' does not exist.")
+    #Multimodality distribution across lang grouped barplot. Inputs raw json.
+    plot_multimodality_distribution('eval_results\inference_results_cleaned.json', output_dir)
 
-    for result_data in plottable_files_stats:
-        element_path = os.path.join(statistics_folder, result_data)
-        plot_data(element_path, output_dir)
+    #Category distribution across lang stacked barplot. Inputs csv.
+    plot_stacked_bar('eval_results/statistics/category_en_per_language.csv', 'Categories', output_dir)
+    plot_stacked_bar('eval_results/statistics/level_per_language.csv', 'Levels', output_dir)
+    plot_stacked_bar('eval_results/statistics/image_type_per_language.csv', 'Image Types', output_dir)
 
-def plot_data(path: str, output_dir: str):
-    #TODO: write a function that given a path, creates and saves in output_dir its plotted data.
-    raise NotImplementedError('function plot_data not implemented yet.')
+    print(f'All plots saved to {output_dir}')
+
+
+
+def generate_spidergraph(data_path: str,group: str, output_folder: str):
+    """
+    Generate a spider (radar) chart comparing multiple models' accuracies across languages.
+    
+    Args:
+        data_path (str): Path to input CSV file.
+        output_folder (str): Directory where to save the resulting plot.
+    """
+    # Read and prepare data
+    df = pd.read_csv(data_path)
+    df = df[df[group] != 'Overall']  # Remove overall score
+    
+    # Extract values and models
+    group_values = df[group].tolist()
+    models = [col for col in df.columns if col != group]
+    num_vars = len(group_values)
+    
+    # Calculate angles for radar chart
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]  # Close the circle
+    
+    # Create figure and polar axis
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
+    
+    # Configure polar plot settings
+    ax.set_theta_direction(-1)  # Clockwise direction
+    ax.set_theta_offset(np.pi/2)  # Start at top
+    ax.set_rlim(0, 1)
+    ax.set_rticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_yticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], 
+                      fontsize=10, color='grey')
+    ax.grid(color='grey', linestyle='--', linewidth=0.5)
+    
+    # Set angular axis labels
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(group_values, fontsize=14, color='black')
+    
+    # Use Matplotlib's color cycle
+    colors = plt.cm.tab10.colors
+    
+    # Plot each model's data
+    for i, model in enumerate(models):
+        values = df[model].tolist()
+        values += values[:1]  # Close the data loop
+        color = colors[i % len(colors)]
+        
+        ax.plot(angles, values, color=color, linewidth=2, 
+               marker='o', markersize=4, label=model)
+        ax.fill(angles, values, color=color, alpha=0.5)
+    
+    # Configure legend
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15),
+             ncol=len(models), fontsize=14, frameon=False)
+    
+    # Save and close figure
+    plt.tight_layout()
+    output_path = f"{output_folder}/accuracy_{group}_spider.png"
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Spider chart of models' accuracy across {group} saved to: {output_path}")
+
+def plot_multimodality_distribution(file_path: str, output_folder: str):
+    """
+    Reads a JSON file containing exam questions, counts how many have images and how many do not,
+    and creates a grouped bar plot per language.
+
+    The JSON file must have at least:
+       - 'language': The language of the question.
+       - 'image_png': A string (or similar) with image data, or null if the question has no image.
+
+    Parameters:
+        file_path (str): Path to the JSON file.
+    """
+    # Read the JSON file into a DataFrame
+    df = pd.read_json(file_path)
+    
+    # Ensure required columns exist
+    if not {'language', 'image_png'}.issubset(df.columns):
+        raise ValueError("The JSON file must contain 'language' and 'image_png' columns.")
+    
+    # Map language codes to full names (assuming LANGUAGES is defined elsewhere)
+    df['language'] = df['language'].apply(lambda code: LANGUAGES.get(code, code))
+    
+    # Create a new column to classify questions
+    df['has_image'] = df['image_png'].notnull().map({True: 'Multimodal', False: 'Text Only'})
+    
+    # Count the number of questions per language and image category
+    grouped = df.groupby(['language', 'has_image']).size().reset_index(name='count')
+    
+    # Pivot the data for grouped bar plotting
+    pivot_df = grouped.pivot(index='language', columns='has_image', values='count')
+    
+    # Create the grouped bar plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Define positions for the bars
+    bar_width = 0.35
+    x = range(len(pivot_df.index))
+    
+    # Plot bars for each category
+    for i, (category, counts) in enumerate(pivot_df.items()):
+        ax.bar([pos + i * bar_width for pos in x], counts, width=bar_width, label=category)
+    
+    # Customize the plot
+    ax.set_xlabel('Language', fontsize=12)
+    ax.set_ylabel('Count', fontsize=12)
+    ax.set_title('Multimodality distribution per Language', fontsize=14)
+    ax.set_xticks([pos + bar_width / 2 for pos in x])
+    ax.set_xticklabels(pivot_df.index, rotation=45, ha='right', fontsize=10)
+    ax.legend(title='Question Multimodality', fontsize=10)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    plt.tight_layout()
+    output_path = f"{output_folder}/question_multimodality_dist.png"
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+
+    print(f"Grouped bar plots of question multimodality saved to: {output_path}")
+
+def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
+    """
+    Reads a CSV file with exam questions, groups the data by language and exam subject,
+    and displays a stacked bar plot where each language shows the distribution of exam subjects.
+    
+    The CSV is expected to have at least a 'language' column, with all other columns representing 
+    counts for different exam subjects.
+    
+    Parameters:
+        file_path (str): Path to the CSV file.
+    """
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(file_path)
+    
+    # Exclude rows where language is 'Overall' (if present)
+    if 'Overall' in df['language'].values:
+        df = df[df['language'] != 'Overall']
+    
+    # Assume that all columns except 'language' are exam subjects.
+    # Set 'language' as the index and use the remaining columns for the bar plot.
+    exam_subjects = [col for col in df.columns if col != 'language']
+    df_pivot = df.set_index('language')[exam_subjects]
+    
+    # Create a stacked bar plot
+    ax = df_pivot.plot(kind='bar', stacked=True, figsize=(10, 6))
+    
+    # Set plot labels and title
+    ax.set_xlabel('Language')
+    ax.set_ylabel('Count')
+    ax.set_title(f'{group_name} distribution by Language')
+    plt.legend(title=f'{group_name}', bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    # Save
+    plt.tight_layout()
+    output_path = f"{output_folder}/stacked_bar_{group_name.lower()}PerLang.png"
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+
+    print(f"Stacked bar plots of {group_name} by language saved to: {output_path}")
