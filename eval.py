@@ -8,7 +8,8 @@ from eval_utils import (
     perform_complete_evaluation,
     perform_accuracy_evaluation,
     perform_descriptive_statistics,
-    perform_experiments
+    perform_experiments,
+    perform_plots
 )
 
 def parse_args():
@@ -41,11 +42,13 @@ def run_evaluation(results, style):
     if style == 'complete':
         perform_complete_evaluation(results)
     if style == 'accuracy':
-        perform_accuracy_evaluation(results)
+        perform_accuracy_evaluation(results, 'eval_results/results_accuracy')
     if style == 'statistics':
         perform_descriptive_statistics(results)
     if style == 'experiments':
         perform_experiments(results)
+    if style == 'plotting':
+        perform_plots()
 
 def load_dataset_from_entry(args):
 
