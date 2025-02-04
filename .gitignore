@@ -7,3 +7,4 @@ results/
 outputs/
 slurm/
 __pycache__/
+data/

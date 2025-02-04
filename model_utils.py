@@ -4,7 +4,6 @@ from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
-from torch.cuda.amp import autocast
 
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
@@ -150,10 +149,19 @@ def query_qwen(
     device="cuda",
     max_tokens=MAX_TOKENS,
 ):
-    images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
+    # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
+    try:
+        images = [
+            Image.open(image_path).convert("RGB").resize((224, 224))
+            for image_path in image_paths
+        ]
+    except:
+        return "Image not found"
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
+    if len(images) == 0:
+        images = None
     inputs = processor(
         text=[text_prompt],
         images=images,
@@ -162,12 +170,14 @@ def query_qwen(
     ).to(device)
 
     # Generate response
-    with autocast("cuda"):
+    # with torch.no_grad():
+    with torch.inference_mode():
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
     ]
+
     response = processor.batch_decode(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )

@@ -18,5 +18,4 @@ python main.py \
 --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/qwen2-vl-7b-instruct/ \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/merged_datasets.hf/
 #--selected_langs ['slovak'] \
-#--dataset dokato/multimodal-SK-exams \
 #--api_key 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 \

@@ -76,8 +76,8 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     # else:
     #     print("evaluating all languages")
     # Level
-    # if num_samples is not None:
-    #     dataset = dataset.select(range(num_samples))
+    if num_samples is not None:
+        dataset = dataset.select(range(num_samples))
     return dataset
 
 
