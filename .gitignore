@@ -8,6 +8,6 @@ outputs/
 slurm/
 __pycache__/
 tokens_mm_exams.json
-testing_models.py
-test.py
-tokens_mm_exams.json
+tests/
+
+
