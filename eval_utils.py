@@ -360,13 +360,6 @@ def perform_plots():
 
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
-    """
-    Generate a spider (radar) chart comparing multiple models' accuracies across languages.
-    
-    Args:
-        data_path (str): Path to input CSV file.
-        output_folder (str): Directory where to save the resulting plot.
-    """
     # Read and prepare data
     df = pd.read_csv(data_path)
     df = df[df[group] != 'Overall']  # Remove overall score
@@ -382,27 +375,22 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     
     # Create figure and polar axis
     fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
-    
-    # Configure polar plot settings
-    ax.set_theta_direction(-1)  # Clockwise direction
-    ax.set_theta_offset(np.pi/2)  # Start at top
+    ax.set_theta_direction(-1)  
+    ax.set_theta_offset(np.pi/2)  
     ax.set_rlim(0, 1)
     ax.set_rticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
     ax.set_yticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], 
                       fontsize=10, color='grey')
     ax.grid(color='grey', linestyle='--', linewidth=0.5)
     
-    # Set angular axis labels
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(group_values, fontsize=14, color='black')
-    
-    # Use Matplotlib's color cycle
     colors = plt.cm.tab10.colors
     
     # Plot each model's data
     for i, model in enumerate(models):
         values = df[model].tolist()
-        values += values[:1]  # Close the data loop
+        values += values[:1]  
         color = colors[i % len(colors)]
         
         ax.plot(angles, values, color=color, linewidth=2, 
@@ -423,15 +411,7 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
 
 def plot_multimodality_distribution(file_path: str, output_folder: str):
     """
-    Reads a JSON file containing exam questions, counts how many have images and how many do not,
-    and creates a grouped bar plot per language.
-
-    The JSON file must have at least:
-       - 'language': The language of the question.
-       - 'image_png': A string (or similar) with image data, or null if the question has no image.
-
-    Parameters:
-        file_path (str): Path to the JSON file.
+    JSON file as input.
     """
     # Read the JSON file into a DataFrame
     df = pd.read_json(file_path)
@@ -440,22 +420,13 @@ def plot_multimodality_distribution(file_path: str, output_folder: str):
     if not {'language', 'image_png'}.issubset(df.columns):
         raise ValueError("The JSON file must contain 'language' and 'image_png' columns.")
     
-    # Map language codes to full names (assuming LANGUAGES is defined elsewhere)
     df['language'] = df['language'].apply(lambda code: LANGUAGES.get(code, code))
-    
-    # Create a new column to classify questions
     df['has_image'] = df['image_png'].notnull().map({True: 'Multimodal', False: 'Text Only'})
     
-    # Count the number of questions per language and image category
     grouped = df.groupby(['language', 'has_image']).size().reset_index(name='count')
     
-    # Pivot the data for grouped bar plotting
     pivot_df = grouped.pivot(index='language', columns='has_image', values='count')
-    
-    # Create the grouped bar plot
     fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Define positions for the bars
     bar_width = 0.35
     x = range(len(pivot_df.index))
     
@@ -463,7 +434,6 @@ def plot_multimodality_distribution(file_path: str, output_folder: str):
     for i, (category, counts) in enumerate(pivot_df.items()):
         ax.bar([pos + i * bar_width for pos in x], counts, width=bar_width, label=category)
     
-    # Customize the plot
     ax.set_xlabel('Language', fontsize=12)
     ax.set_ylabel('Count', fontsize=12)
     ax.set_title('Multimodality distribution per Language', fontsize=14)
@@ -480,32 +450,16 @@ def plot_multimodality_distribution(file_path: str, output_folder: str):
     print(f"Grouped bar plots of question multimodality saved to: {output_path}")
 
 def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
-    """
-    Reads a CSV file with exam questions, groups the data by language and exam subject,
-    and displays a stacked bar plot where each language shows the distribution of exam subjects.
-    
-    The CSV is expected to have at least a 'language' column, with all other columns representing 
-    counts for different exam subjects.
-    
-    Parameters:
-        file_path (str): Path to the CSV file.
-    """
-    # Read the CSV file into a DataFrame
     df = pd.read_csv(file_path)
     
-    # Exclude rows where language is 'Overall' (if present)
     if 'Overall' in df['language'].values:
         df = df[df['language'] != 'Overall']
     
-    # Assume that all columns except 'language' are exam subjects.
-    # Set 'language' as the index and use the remaining columns for the bar plot.
     exam_subjects = [col for col in df.columns if col != 'language']
     df_pivot = df.set_index('language')[exam_subjects]
     
-    # Create a stacked bar plot
     ax = df_pivot.plot(kind='bar', stacked=True, figsize=(10, 6))
     
-    # Set plot labels and title
     ax.set_xlabel('Language')
     ax.set_ylabel('Count')
     ax.set_title(f'{group_name} distribution by Language')
