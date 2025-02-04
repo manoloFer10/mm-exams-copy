@@ -2,6 +2,7 @@
 
 import argparse
 import pandas as pd
+import os
 from datasets import load_dataset, Dataset
 from eval_utils import (
     EVALUATION_STYLES,
@@ -32,23 +33,31 @@ def parse_args():
         required=True, 
         help=f"type of evaluation to perform. Should be one of: {', '.join(EVALUATION_STYLES)}"
     )
+    parser.add_argument(
+        "--output_folder",
+        type=str, 
+        required=True,
+        help= "where to save output results" 
+    )
     args = parser.parse_args()
     return args
 
-def run_evaluation(results, style):
+def run_evaluation(results, style, output_folder):
 
     if style not in EVALUATION_STYLES: raise NameError(f'{style} is not a supported evaluation style. Evaluation styles: {EVALUATION_STYLES}')
 
+    os.makedirs(output_folder, exist_ok=True)
+
     if style == 'complete':
-        perform_complete_evaluation(results)
+        perform_complete_evaluation(results, output_folder)
     if style == 'accuracy':
-        perform_accuracy_evaluation(results, 'eval_results/results_accuracy')
+        perform_accuracy_evaluation(results, output_folder)
     if style == 'statistics':
-        perform_descriptive_statistics(results)
+        perform_descriptive_statistics(results, output_folder)
     if style == 'experiments':
-        perform_experiments(results)
+        perform_experiments(results, output_folder)
     if style == 'plotting':
-        perform_plots()
+        perform_plots(output_folder)
 
 def load_dataset_from_entry(args):
 
@@ -73,7 +82,7 @@ def main():
     # Load dataset.
     results = load_dataset_from_entry(args)
 
-    run_evaluation(results, args.evaluation_style)
+    run_evaluation(results, args.evaluation_style, args.output_folder)
     
 if __name__ == '__main__':
     main()

@@ -192,14 +192,18 @@ LANGUAGES = {
   "zu": "Zulu"
 }
 
-def perform_complete_evaluation(df_dataset):
+def perform_complete_evaluation(df_dataset, output_folder):
 
-    perform_accuracy_evaluation(df_dataset, output_folder='eval_results/results_accuracy')
-    perform_descriptive_statistics(df_dataset)
+    perform_accuracy_evaluation(df_dataset, output_folder)
+    perform_descriptive_statistics(df_dataset, output_folder)
+    perform_plots(df_dataset, output_folder)
     print('not implemented yet: perform_experiments(df_dataset)')
 
 def perform_accuracy_evaluation(df_dataset, output_folder):
     code2lang = LANGUAGES
+
+    output_folder = output_folder +'/results_accuracy'
+    os.makedirs(output_folder, exist_ok=True)
 
     if 'language' in df_dataset.columns:
         df_dataset['language'] = df_dataset['language'].map(code2lang)
@@ -230,9 +234,8 @@ def perform_accuracy_evaluation(df_dataset, output_folder):
             .mean()
             .unstack(fill_value=0) 
         )
-        os.makedirs(output_folder, exist_ok=True)
         file_name = model + "_accuracy_language&category.csv"
-        output_file = os.path.join(output_folder, file_name)
+        output_file = output_folder +'/' + file_name
         accuracies.to_csv(output_file)
 
         
@@ -248,17 +251,14 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
     accuracies_by_lang.loc['Overall'] = overall_accuracies
     
     #Save
-    if not output_folder:
-        output_folder = "eval_results/results_accuracy"
-    os.makedirs(output_folder, exist_ok=True)
-    file_name = "accuracy_across_" + group + ".csv"
-    output_file = os.path.join(output_folder, file_name)
+    file_name = "/accuracy_across_" + group + ".csv"
+    output_file = output_folder+ file_name
     accuracies_by_lang.to_csv(output_file)
 
-def perform_descriptive_statistics(df_dataset):
+def perform_descriptive_statistics(df_dataset, output_folder):
     code2lang = LANGUAGES
 
-    output_folder = "eval_results/statistics"
+    output_folder = output_folder +'/statistics'
     os.makedirs(output_folder, exist_ok=True)
 
     # Frequency Tables
@@ -271,7 +271,7 @@ def perform_descriptive_statistics(df_dataset):
              # Map language codes to names if the column is 'language'
             # if field == 'language':
             #     freq_table['full_lang'] = freq_table[field].map(code2lang)
-            freq_table.to_csv(os.path.join(output_folder, f"{field}_frequency.csv"), index=False)
+            freq_table.to_csv(output_folder+ f"/{field}_frequency.csv", index=False)
 
     #  Length Statistics. Manu: do we really need these??
     # text_fields = ['question', 'options']
@@ -289,7 +289,7 @@ def perform_descriptive_statistics(df_dataset):
         model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
         distributions = [calculate_distribution(df_dataset, col) for col in model_columns]
         answer_stats = pd.concat([answer_stats] + distributions, axis=1)
-        answer_stats.to_csv(os.path.join(output_folder, "answer_balance.csv"), index=True)
+        answer_stats.to_csv(output_folder +"/answer_balance.csv", index=True)
     
 
     # image_type, image_information, level and category_en distributions per language
@@ -324,7 +324,7 @@ def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output
     pivot_table.loc['Overall'] = overall_counts
 
     pivot_table.index = pivot_table.index.map(lambda x: code2lang.get(x, x))
-    pivot_table.to_csv(os.path.join(output_folder, f"{field}_per_language.csv"), index=True)
+    pivot_table.to_csv(output_folder+ f"/{field}_per_language.csv", index=True)
 
 
 def perform_experiments(df_dataset):
@@ -340,22 +340,26 @@ def image_blindess_experiment(df_dataset):
                                 output_folder='eval_results/experiments/image_blidness',
                                 file_name = 'image_blidness_results.csv')
     
-def perform_plots():
-    output_dir = 'eval_results/plots'
+def perform_plots(df_dataset, output_folder):
+    origin_folder = output_folder
+    output_folder = output_folder +'/plots'
+    os.makedirs(output_folder, exist_ok=True)
 
     #Spider graph; model accuracy by lang
-    generate_spidergraph('eval_results/results_accuracy/accuracy_across_language.csv', 'language', output_dir)
-    generate_spidergraph('eval_results/results_accuracy/accuracy_across_level.csv', 'level', output_dir)
+    generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_language.csv', 'language', output_folder)
+    generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
 
     #Multimodality distribution across lang grouped barplot. Inputs raw json.
-    plot_multimodality_distribution('eval_results\inference_results_cleaned.json', output_dir)
+    plot_multimodality_distribution(df_dataset, output_folder)
 
     #Category distribution across lang stacked barplot. Inputs csv.
-    plot_stacked_bar('eval_results/statistics/category_en_per_language.csv', 'Categories', output_dir)
-    plot_stacked_bar('eval_results/statistics/level_per_language.csv', 'Levels', output_dir)
-    plot_stacked_bar('eval_results/statistics/image_type_per_language.csv', 'Image Types', output_dir)
+    plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
+    plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
+    plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+    plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
 
-    print(f'All plots saved to {output_dir}')
+
+    print(f'All plots saved to {output_folder}')
 
 
 
@@ -409,13 +413,12 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     
     print(f"Spider chart of models' accuracy across {group} saved to: {output_path}")
 
-def plot_multimodality_distribution(file_path: str, output_folder: str):
+def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
     """
-    JSON file as input.
+    pd DataFrame as input.
+
+    Should change this function to pick values from a csv generated by perform_descriptive_statistics
     """
-    # Read the JSON file into a DataFrame
-    df = pd.read_json(file_path)
-    
     # Ensure required columns exist
     if not {'language', 'image_png'}.issubset(df.columns):
         raise ValueError("The JSON file must contain 'language' and 'image_png' columns.")
