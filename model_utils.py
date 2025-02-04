@@ -10,7 +10,7 @@ from torch.cuda.amp import autocast
 TEMPERATURE = 0
 MAX_TOKENS = 1  # Only output the option chosen.
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "gemini-1.5-flash", "claude-3-5-sonnet-latest"] #haiku does not support image input
+SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "gemini-2.0-flash-exp"] # "claude-3-5-haiku-latest" haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -80,11 +80,11 @@ def initialize_model(
     elif model_name == "molmo":
         # Add Molmo initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name == "gpt-4o":
+    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
-    elif model_name == 'gemini-1.5-flash':
+    elif model_name == 'gemini-2.0-flash-exp':
         client = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -123,7 +123,7 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == 'claude-3-5-sonnet-latest':
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -220,7 +220,7 @@ def generate_prompt(
             system_message,
             few_shot_setting,
         )
-    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
         return parse_openai_input(
             question["question"],
             question["image"],
