@@ -222,6 +222,12 @@ def perform_accuracy_evaluation(df_dataset, output_folder):
     # Group by category_en and calculate accuracies
     group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
 
+    # Group by level and calculate accuracies
+    group_by_and_score(df_dataset, 'level', model_names, output_folder)
+
+    # Group by category_en and calculate accuracies
+    group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
+
     # Calculate accuracies by language and category for each model.
     for model in model_names:
         accuracy_df = df_dataset[model] == df_dataset['answer']
@@ -269,6 +275,8 @@ def perform_descriptive_statistics(df_dataset, output_folder):
             # if field == 'language':
             #     freq_table['full_lang'] = freq_table[field].map(code2lang)
             freq_table.to_csv(output_folder+ f"/{field}_frequency.csv", index=False)
+
+
     #  Length Statistics. Manu: do we really need these??
     # text_fields = ['question', 'options']
     # for field in text_fields:
@@ -276,37 +284,34 @@ def perform_descriptive_statistics(df_dataset, output_folder):
     #         length_stats = df_dataset[field].dropna().apply(len).describe()
     #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
+
     # Answer distribution
     if 'answer' in df_dataset.columns:
-        answer_stats = df_dataset['answer'].value_counts().reset_index()
-        answer_stats.columns = ['answer', 'correct answer counts']
-        answer_stats = answer_stats.set_index('answer')
-        answer_stats['proportion correct answer'] = answer_stats['correct answer counts'] / answer_stats['correct answer counts'].sum()
+        answer_stats = calculate_distribution(df_dataset, 'answer')
+        answer_stats.columns = ['correct answer counts', 'proportion correct answer']
 
         model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
-        for col in model_columns:
-            model_answer_distribution = df_dataset[col].value_counts().reset_index()
-            model_answer_distribution.columns = ['answer', 'counts ' + col]
-            model_answer_distribution = model_answer_distribution.set_index('answer')
-            model_answer_distribution['proportion ' + col] = model_answer_distribution['counts ' + col] / model_answer_distribution['counts ' + col].sum()
-            
-            answer_stats = pd.merge(answer_stats, 
-                                    model_answer_distribution, 
-                                    left_index=True, 
-                                    right_index=True,  
-                                    how='outer')
-
-        
+        distributions = [calculate_distribution(df_dataset, col) for col in model_columns]
+        answer_stats = pd.concat([answer_stats] + distributions, axis=1)
         answer_stats.to_csv(output_folder +"/answer_balance.csv", index=True)
+    
 
-
-    # image_type, image_information and category_en distributions per language
+    # image_type, image_information, level and category_en distributions per language
     get_distribution_table(df_dataset, 'category_en', code2lang, output_folder)
     get_distribution_table(df_dataset, 'image_type', code2lang, output_folder)
     get_distribution_table(df_dataset, 'level', code2lang, output_folder)
     get_distribution_table(df_dataset, 'image_information', code2lang, output_folder)
 
     print(f"Overall statistics saved to folder: {output_folder}")
+
+def calculate_distribution(df, column_name):
+    """Calculate the distribution and proportion of answers in a given column."""
+    distribution = df[column_name].value_counts().reset_index()
+    distribution.columns = ['answer', f'counts {column_name}']
+    distribution = distribution.set_index('answer')
+    distribution[f'proportion {column_name}'] = distribution[f'counts {column_name}'] / distribution[f'counts {column_name}'].sum()
+    distribution = distribution.round(2).astype(str)
+    return distribution
 
 def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
 
@@ -319,9 +324,12 @@ def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output
         aggfunc='size',  
         fill_value=0  
     )
+    overall_counts = pivot_table.sum()
+    pivot_table.loc['Overall'] = overall_counts
 
     pivot_table.index = pivot_table.index.map(lambda x: code2lang.get(x, x))
     pivot_table.to_csv(output_folder+ f"/{field}_per_language.csv", index=True)
+
 
 def perform_experiments(df_dataset):
 
@@ -340,6 +348,8 @@ def perform_plots(df_dataset, output_folder):
     origin_folder = output_folder
     output_folder = output_folder +'/plots'
     os.makedirs(output_folder, exist_ok=True)
+
+    #Spider graph; model accuracy by lang
     generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_language.csv', 'language', output_folder)
     generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
 
@@ -352,7 +362,10 @@ def perform_plots(df_dataset, output_folder):
     plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
     plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
 
+
     print(f'All plots saved to {output_folder}')
+
+
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
     # Read and prepare data
@@ -401,17 +414,15 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     output_path = f"{output_folder}/accuracy_{group}_spider.png"
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
-
+    
     print(f"Spider chart of models' accuracy across {group} saved to: {output_path}")
-
-
 
 def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
     """
     pd DataFrame as input.
+
     Should change this function to pick values from a csv generated by perform_descriptive_statistics
     """
-
     # Ensure required columns exist
     if not {'language', 'image_png'}.issubset(df.columns):
         raise ValueError("The JSON file must contain 'language' and 'image_png' columns.")
@@ -442,9 +453,8 @@ def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
     output_path = f"{output_folder}/question_multimodality_dist.png"
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
+
     print(f"Grouped bar plots of question multimodality saved to: {output_path}")
-
-
 
 def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
     df = pd.read_csv(file_path)
@@ -467,5 +477,5 @@ def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
     output_path = f"{output_folder}/stacked_bar_{group_name.lower()}PerLang.png"
     plt.savefig(output_path, bbox_inches='tight')
     plt.close()
-    
+
     print(f"Stacked bar plots of {group_name} by language saved to: {output_path}")

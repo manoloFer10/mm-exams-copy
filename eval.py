@@ -2,6 +2,7 @@
 
 import argparse
 import pandas as pd
+import os
 from datasets import load_dataset, Dataset
 from eval_utils import (
     EVALUATION_STYLES,
@@ -42,7 +43,11 @@ def parse_args():
     return args
 
 def run_evaluation(results, style, output_folder):
+
     if style not in EVALUATION_STYLES: raise NameError(f'{style} is not a supported evaluation style. Evaluation styles: {EVALUATION_STYLES}')
+
+    os.makedirs(output_folder, exist_ok=True)
+
     if style == 'complete':
         perform_complete_evaluation(results, output_folder)
     if style == 'accuracy':

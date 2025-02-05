@@ -5,3 +5,4 @@ anthropic
 Pillow==11.1.0
 torch==2.5.1
 transformers==4.47.1
+matplotlib
