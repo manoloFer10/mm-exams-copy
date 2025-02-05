@@ -65,7 +65,7 @@ def load_dataset_from_entry(args):
         df_dataset = pd.DataFrame(args.results_dataset)
     elif isinstance(args.results_dataset, str):
         df_dataset = pd.read_json(args.results_dataset)
-    elif isinstance(args.results_dataset, Dataset): 
+    elif isinstance(args.results_dataset, Dataset): # This does not really read the dataset as HF, since it is passed as str
         results = load_dataset(args.results_dataset)['train']
         df_dataset = results.to_pandas()
     else:

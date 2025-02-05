@@ -7,8 +7,9 @@ from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 
-TEMPERATURE = 0
+TEMPERATURE = 0 # Set to 0.7
 MAX_TOKENS = 1  # Only output the option chosen.
+# MAX_TOKENS = 256 
 
 SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "gemini-2.0-flash-exp"] # "claude-3-5-haiku-latest" haiku does not support image input
 
