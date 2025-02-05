@@ -215,9 +215,12 @@ def perform_accuracy_evaluation(df_dataset, output_folder):
 
     # Group by language and calculate accuracies
     group_by_and_score(df_dataset, 'language', model_names, output_folder)
-
     # Group by country and calculate accuracies
     group_by_and_score(df_dataset, 'country', model_names, output_folder)
+    # Group by level and calculate accuracies
+    group_by_and_score(df_dataset, 'level', model_names, output_folder)
+    # Group by category_en and calculate accuracies
+    group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
 
     # Group by level and calculate accuracies
     group_by_and_score(df_dataset, 'level', model_names, output_folder)
@@ -272,6 +275,7 @@ def perform_descriptive_statistics(df_dataset, output_folder):
             # if field == 'language':
             #     freq_table['full_lang'] = freq_table[field].map(code2lang)
             freq_table.to_csv(output_folder+ f"/{field}_frequency.csv", index=False)
+
 
     #  Length Statistics. Manu: do we really need these??
     # text_fields = ['question', 'options']
