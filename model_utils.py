@@ -4,11 +4,18 @@ from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
+from anthropic import Anthropic
+from torch.cuda.amp import autocast
 
-TEMPERATURE = 0
+TEMPERATURE = 0  # Set to 0.7
 MAX_TOKENS = 1  # Only output the option chosen.
+# MAX_TOKENS = 256
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "gemini-1.5-flash"]
+SUPPORTED_MODELS = [
+    "gpt-4o-mini",
+    "qwen2-7b",
+    "gemini-2.0-flash-exp",
+]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -58,14 +65,11 @@ def initialize_model(
     """
     Initialize the model and processor/tokenizer based on the model name.
     """
-    temperature = TEMPERATURE
-    max_tokens = MAX_TOKENS
-
     if model_name == "qwen2-7b":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
             # torch_dtype=torch.float16,
-            # temperature=temperature,
+            temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
             # attn_implementation="flash_attention_2",
@@ -81,15 +85,19 @@ def initialize_model(
     elif model_name == "molmo":
         # Add Molmo initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name == "gpt-4o":
+    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
-    elif model_name == 'gemini-1.5-flash':
+    elif model_name == "gemini-2.0-flash-exp":
         client = OpenAI(
             api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
+        model = client
+        processor = None
+    elif model_name == "claude-3-5-sonnet-latest":
+        client = Anthropic(api_key=api_key)
         model = client
         processor = None
     else:
@@ -120,8 +128,10 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
+    elif model_name == "claude-3-5-sonnet-latest":
+        return query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
@@ -148,13 +158,29 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
     return format_answer(output_text)
 
 
+def query_anthropic(client, model_name, prompt, temperature, max_tokens):
+
+    system_message = prompt[0]["content"]
+    user_messages = prompt[1]
+
+    response = client.messages.create(
+        model=model_name,
+        messages=[user_messages],
+        system=system_message,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    output_text = response.content[0].text
+    return format_answer(output_text)
+
+
 def query_qwen(
     model,
     processor,
     prompt: list,
     image_paths: list,
     device="cuda",
-    max_tokens=MAX_TOKENS
+    max_tokens=MAX_TOKENS,
 ):
     # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
     try:
@@ -211,7 +237,7 @@ def generate_prompt(
             system_message,
             few_shot_setting,
         )
-    elif model_name in ['gpt-4o', 'gemini-1.5-flash']:
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
         return parse_openai_input(
             question["question"],
             question["image"],
@@ -229,6 +255,15 @@ def generate_prompt(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
+    elif model_name == "claude-3-5-sonnet-latest":
+        return parse_anthropic_input(
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            system_message,
+            few_shot_setting,
+        )
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -239,23 +274,29 @@ def parse_openai_input(
     """
     Outputs: conversation dictionary supported by OpenAI.
     """
-    system_message = [{"role": "system", "content": system_message}]
+    system_message = {"role": "system", "content": system_message}
 
-    def encode_image(image):
+    def encode_image(image_path):
         try:
-            return base64.b64encode(image).decode("utf-8")
+            with open(image_path, "rb") as image_file:
+                binary_data = image_file.read()
+                base_64_encoded_data = base64.b64encode(binary_data)
+                base64_string = base_64_encoded_data.decode("utf-8")
+                return base64_string
         except Exception as e:
-            raise TypeError(f"Image {image} could not be encoded. {e}")
-
-    question = [{"type": "text", "text": question_text}]
+            raise TypeError(f"Image {image_path} could not be encoded. {e}")
 
     if question_image:
         base64_image = encode_image(question_image)
-        question_image_message = {
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-        }
-        question.append(question_image_message)
+        question = [
+            {"type": "text", "text": question_text},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+            },
+        ]
+    else:
+        question = [{"type": "text", "text": question_text}]
 
     # Parse options. Handle options with images carefully by inclusion in the conversation.
     parsed_options = []
@@ -290,7 +331,7 @@ def parse_openai_input(
             new_text_option["text"] = formated_text
             parsed_options.append(new_text_option)
 
-    user_text = [question] + parsed_options
+    user_text = question + parsed_options
     user_message = {"role": "user", "content": user_text}
 
     # Enable few-shot setting
@@ -304,7 +345,92 @@ def parse_openai_input(
     else:
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-    return messages, None
+    return messages, None  # image paths not expected for openai client.
+
+
+def parse_anthropic_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+):
+    """
+    Outputs: conversation dictionary supported by Anthropic.
+    """
+    # review, claude-3-5-sonnet-latest might not support conversation items inside content
+    system_message = {"role": "system", "content": system_message}
+
+    def encode_image(image_path):
+        try:
+            with open(image_path, "rb") as image_file:
+                binary_data = image_file.read()
+                base_64_encoded_data = base64.b64encode(binary_data)
+                base64_string = base_64_encoded_data.decode("utf-8")
+                return base64_string
+        except Exception as e:
+            raise TypeError(f"Image {image_path} could not be encoded. {e}")
+
+    if question_image:
+        base64_image = encode_image(question_image)
+        question = [
+            {"type": "text", "text": question_text},
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": base64_image,
+                },
+            },
+        ]
+    else:
+        question = {"type": "text", "text": question_text}
+
+    # Parse options. Handle options with images carefully by inclusion in the conversation.
+    parsed_options = []
+    only_text_option = {"type": "text", "text": "{text}"}
+    only_image_option = {
+        "type": "image_url",
+        "image_url": {"url": "data:image/png;base64,{base64_image}"},
+    }
+
+    for i, option in enumerate(options_list):
+        option_indicator = f"{i+1})"
+        if option.lower().endswith(".png"):
+            # Generating the dict format of the conversation if the option is an image
+            new_image_option = only_image_option.copy()
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
+            new_text_option["text"] = formated_text
+
+            parsed_options.append(new_text_option)
+            parsed_options.append(
+                new_image_option["image_url"]["url"].format(
+                    base64_image=encode_image(option)
+                )
+            )
+
+        else:
+            # Generating the dict format of the conversation if the option is not an image
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(
+                text=option_indicator + option + "\n"
+            )
+            new_text_option["text"] = formated_text
+            parsed_options.append(new_text_option)
+
+    user_text = question + parsed_options
+    user_message = {"role": "user", "content": user_text}
+
+    # Enable few-shot setting
+    if few_shot_setting == "few-shot":
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
+        messages = [system_message, user_message]
+    elif few_shot_setting == "zero-shot":
+        messages = [system_message, user_message]
+    else:
+        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
+
+    return messages, None  # image paths not expected for openai client.
 
 
 def parse_qwen_input(
@@ -369,7 +495,6 @@ def parse_qwen_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        # this is weird, check it ou afterwards
         user_message["content"] = (
             fetch_few_shot_examples(lang) + user_message["content"]
         )
@@ -391,9 +516,6 @@ def format_answer(answer: str):
     """
     if not isinstance(answer, str):
         raise ValueError(f"Invalid input: '{answer}'.")
-    if len(answer) != 1:
-        answer = answer[0]
-
     if "A" <= answer <= "Z":
         # Convert letter to zero-indexed number
         return ord(answer) - ord("A")
@@ -414,7 +536,8 @@ def fetch_system_message(system_messages: dict[str, str], lang: str) -> str:
 
 
 def fetch_few_shot_examples(lang):
-    # TODO: write function.
+    # TODO: write function. Should output a list of dicts in the conversation format expected.
+    # I reckon we should do as parse_client_input with these. Add few-shot image examples regarding the format the input model expects.
     raise NotImplementedError(
         "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
     )

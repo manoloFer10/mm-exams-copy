@@ -13,6 +13,8 @@ from model_utils import (
     fetch_system_message,
     SUPPORTED_MODELS,
     SYSTEM_MESSAGES,
+    TEMPERATURE,
+    MAX_TOKENS
 )
 
 
@@ -87,6 +89,10 @@ def evaluate_model(args):
     """
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
+    
+    temperature = TEMPERATURE
+    max_tokens = MAX_TOKENS
+    system_message = fetch_system_message(SYSTEM_MESSAGES, lang)
 
     # Load dataset
     dataset = load_and_filter_dataset(
@@ -104,11 +110,18 @@ def evaluate_model(args):
             args.model,
             question,
             lang,
-            fetch_system_message(SYSTEM_MESSAGES, lang),
-            args.setting,
+            system_message,
+            args.setting
         )
         # Query model
-        prediction = query_model(args.model, model, processor, prompt, image_paths)
+        prediction = query_model(args.model,
+                                 model, 
+                                 processor, 
+                                 prompt, 
+                                 image_paths, 
+                                 temperature=temperature,
+                                 max_tokens=max_tokens
+        )
 
         question["prediction_by_" + args.model] = prediction
         # question_json['prompt_used'] = prompt
