@@ -8,3 +8,7 @@ outputs/
 slurm/
 __pycache__/
 data/
+*.hf
+*.txt
+*.zip
+*.pkl
