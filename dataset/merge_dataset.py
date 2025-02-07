@@ -2,6 +2,7 @@ from datasets import Dataset, concatenate_datasets, Features, Value, Sequence
 from pathlib import Path
 import os
 import regex as re
+import json
 
 DATA_ROOT = Path("data/")
 
@@ -64,7 +65,19 @@ def merge_datasets(data_dir: str):
             json_files = list(dataset_dir.glob("*.json"))
             try:
                 for json_dataset in json_files:
-                    dataset = Dataset.from_json(str(json_dataset))
+                    if str(dataset_dir).split("/")[1] in [
+                        "srmk-hu",
+                        "srmk-hr",
+                        "srmk-sr",
+                        "srmk-ro",
+                    ]:
+                        with open(json_files[0], "r", encoding="utf-8") as file:
+                            data = json.load(file)
+                        for d in data:
+                            d["parallel_question_id"] = ""
+                        dataset = Dataset.from_list(data)
+                    else:
+                        dataset = Dataset.from_json(str(json_dataset))
 
                     # Map image paths
                     # check that there is an image folder with iamges, if not pass for now.

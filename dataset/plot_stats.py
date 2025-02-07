@@ -88,6 +88,7 @@ if __name__ == "__main__":
 
     # 4. Questions by Category (Before vs. After)
     categories = list(stats["questions_by_category"].keys())
+    general_categories = list(stats["questions_by_general_category"].keys())
     initial_category_counts = [
         stats["questions_by_category"][cat] for cat in categories
     ]
@@ -195,3 +196,47 @@ if __name__ == "__main__":
 
     print("\nRemoved Languages:")
     print(removed_languages)
+
+    # Extract data
+
+    initial_multimodal_category_counts = [
+        stats["multimodal_by_general_category"].get(cat, 0)
+        for cat in general_categories
+    ]
+    final_multimodal_category_counts = [
+        stratified_stats["multimodal_by_general_category"].get(cat, 0)
+        for cat in general_categories
+    ]
+
+    # Define bar width and index
+    bar_width = 0.35
+    index = range(len(general_categories))  # Use range for x-axis positions
+
+    # Plot
+    plt.figure(figsize=(12, 6))
+    plt.bar(
+        index,
+        initial_multimodal_category_counts,
+        bar_width,
+        label="Initial",
+        color="blue",
+    )
+    plt.bar(
+        [i + bar_width for i in index],
+        final_multimodal_category_counts,
+        bar_width,
+        label="Final",
+        color="orange",
+    )
+
+    plt.xlabel("Category")
+    plt.ylabel("Number of Multimodal Questions")
+    plt.title("Multimodal Questions by General Category (Before vs. After)")
+    plt.xticks([i + bar_width / 2 for i in index], general_categories, rotation=90)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    import code
+
+    code.interact(local=locals())

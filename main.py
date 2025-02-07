@@ -14,8 +14,10 @@ from model_utils import (
     SUPPORTED_MODELS,
     SYSTEM_MESSAGES,
     TEMPERATURE,
-    MAX_TOKENS
+    MAX_TOKENS,
 )
+
+IMAGE_ROOT = ""
 
 
 def parse_args():
@@ -66,12 +68,18 @@ def parse_args():
     return args
 
 
+def map_image_path(example):
+    example["image"] = IMAGE_ROOT + example["image"]
+    return example
+
+
 def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     """
     Load and filter the dataset based on language and number of samples.
     """
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
+    dataset = dataset.map(map_image_path)
     # Language
     # if lang != "all":
     #     dataset = dataset.filter(lambda sample: sample["language"] == lang)
@@ -89,7 +97,7 @@ def evaluate_model(args):
     """
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
-    
+
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
     system_message = fetch_system_message(SYSTEM_MESSAGES, lang)
@@ -107,20 +115,17 @@ def evaluate_model(args):
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(
-            args.model,
-            question,
-            lang,
-            system_message,
-            args.setting
+            args.model, question, lang, system_message, args.setting
         )
         # Query model
-        prediction = query_model(args.model,
-                                 model, 
-                                 processor, 
-                                 prompt, 
-                                 image_paths, 
-                                 temperature=temperature,
-                                 max_tokens=max_tokens
+        prediction = query_model(
+            args.model,
+            model,
+            processor,
+            prompt,
+            image_paths,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         question["prediction_by_" + args.model] = prediction
