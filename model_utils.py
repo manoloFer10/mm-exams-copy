@@ -1,6 +1,12 @@
 import base64
 import torch
-from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+import re
+from transformers import (
+                        Qwen2VLForConditionalGeneration,
+                        AutoProcessor,
+                        AutoModelForCausalLM, 
+                        GenerationConfig
+                        )
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
@@ -33,6 +39,7 @@ SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "gemini-2.0-flash-exp"] # "claude
 #     "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
 #     "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।",
 # }
+INSTRUCTIONS_COT = 'The following is a multiple-choice question. Think step by step and then provide your final answer between the tags <ANSWER> X </ANSWER> where X is the correct letter choice.'
 
 SYSTEM_MESSAGES = {
     "en": "You are given a multiple-choice question to answer. You MUST respond only with the number corresponding to the correct answer, without any additional text or explanation.",
@@ -62,6 +69,7 @@ def initialize_model(
     Initialize the model and processor/tokenizer based on the model name.
     """
     if model_name == "qwen2-7b":
+
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",
             # torch_dtype=torch.float16,
@@ -75,27 +83,45 @@ def initialize_model(
             Path(model_path) / "processor", local_files_only=True
         )
         print(f"Model loaded from {model_path}")
+
     elif model_name == "pangea":
         # Add Pangea initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name == "molmo":
-        # Add Molmo initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
     elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
+
     elif model_name == 'gemini-2.0-flash-exp':
+
         client = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
         model = client
         processor = None
+
     elif model_name == 'claude-3-5-sonnet-latest':
         client = Anthropic(api_key=api_key)
         model = client
         processor = None
+
+    elif model_name == 'molmo':
+
+        processor = AutoProcessor.from_pretrained(
+            'allenai/Molmo-7B-D-0924',
+            trust_remote_code=True,
+            torch_dtype='auto',
+            device_map='auto'
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            'allenai/Molmo-7B-D-0924',
+            trust_remote_code=True,
+            torch_dtype='auto',
+            device_map='auto',
+            temperature= TEMPERATURE
+        )
     else:
         raise NotImplementedError(
             f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
@@ -123,7 +149,7 @@ def query_model(
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "molmo":
         # Add molmo querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
+        query_molmo(model, processor, prompt, images)
     elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == 'claude-3-5-sonnet-latest':
@@ -139,8 +165,36 @@ def query_pangea():
     pass
 
 
-def query_molmo():
-    pass
+def query_molmo(model,
+    processor,
+    prompt: list,
+    image_path: list,
+):
+    if prompt == 'multi-image':
+        print('Question was multi-image, molmo does not support multi-image inputs.')
+        return 'multi-image detected'
+    else:
+        inputs = processor.process(
+            images=[Image.open(image_path).convert("RGB")],
+            text=prompt
+        )
+        # move inputs to the correct device and make a batch of size 1
+        inputs = {k: v.to(model.device).unsqueeze(0) for k, v in inputs.items()}
+
+        # generate output; maximum 200 new tokens; stop generation when <|endoftext|> is generated
+        output = model.generate_from_batch(
+            inputs,
+            GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
+            tokenizer=processor.tokenizer
+        )
+
+        # only get generated tokens; decode them to text
+        generated_tokens = output[0,inputs['input_ids'].size(1):]
+        generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+        return format_answer(generated_text)
+
+
 
 
 def query_openai(client, model_name, prompt, temperature, max_tokens):
@@ -238,7 +292,14 @@ def generate_prompt(
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "molmo":
         # Add molmo querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
+        return parse_molmo_inputs(
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            system_message,
+            few_shot_setting
+        )
     elif model_name == 'claude-3-5-sonnet-latest':
         return parse_anthropic_input(
             question["question"],
@@ -417,6 +478,20 @@ def parse_anthropic_input(
 
     return messages, None #image paths not expected for openai client.
 
+def parse_molmo_inputs(question_text, question_image, options_list, lang, instruction, few_shot_setting):
+  for option in options_list:
+    if '.png' in option:
+      return 'multi-image', None
+
+  prompt = instruction + '\n\n'
+  question = 'Question: ' + question_text + '\n\n'
+
+  options = 'Options:\n'
+  for i, option in enumerate(options_list):
+    options += chr(65+i) + '. ' + option + '\n'
+
+  prompt += question + options + '\nAnswer:'
+  return prompt, question_image
 
 def parse_qwen_input(
     question_text, question_image, options_list, lang, system_message, few_shot_setting
@@ -495,20 +570,18 @@ def parse_qwen_input(
 
 def format_answer(answer: str):
     """
+    Searchs for the answer between tags <Answer>.
+    
     Returns: A zero-indexed integer corresponding to the answer.
     """
-    if not isinstance(answer, str):
-        raise ValueError(f"Invalid input: '{answer}'.")
-    if "A" <= answer <= "Z":
-        # Convert letter to zero-indexed number
-        return ord(answer) - ord("A")
-    elif "1" <= answer <= "9":
-        # Convert digit to zero-indexed number
-        return int(answer) - 1
+    pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
+    match = re.search(pattern, answer)
+
+    if match:
+        letter = match.group(1).upper()  #
+        return ord(letter) - ord('A')
     else:
-        raise ValueError(
-            f"Invalid answer: '{answer}'. Must be a letter (A-Z) or a digit (1-9)."
-        )
+        return None
 
 
 def fetch_system_message(system_messages: dict[str, str], lang: str) -> str:
