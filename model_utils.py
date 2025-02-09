@@ -41,8 +41,30 @@ SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "qwen2.5-7b", "gemini-2.0-flash-e
 #     "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
 #     "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।",
 # }
-INSTRUCTIONS_COT = 'The following is a multiple-choice question. Think step by step and then provide your final answer between the tags <ANSWER> X </ANSWER> where X is the correct letter choice.'
 
+INSTRUCTIONS_COT = {
+    "en": "The following is a multiple-choice question. Think step by step and then provide your final answer between the tags <ANSWER> X </ANSWER> where X is the correct letter choice.",
+    "es": "La siguiente es una pregunta de opción múltiple. Piensa paso a paso y luego proporciona tu respuesta final entre las etiquetas <ANSWER> X </ANSWER>, donde X es la letra correcta.",
+    "hi": "निम्नलिखित एक बहुविकल्पीय प्रश्न है। चरण दर चरण सोचें और फिर अपने अंतिम उत्तर को <ANSWER> X </ANSWER> टैग के बीच प्रदान करें, जहाँ X सही विकल्प का अक्षर है।",
+    "hu": "A következő egy feleletválasztós kérdés. Gondolkodj lépésről lépésre, majd add meg a végső válaszodat a <ANSWER> X </ANSWER> címkék között, ahol X a helyes betű.",
+    "hr": "Sljedeće je pitanje s višestrukim izborom. Razmišljajte korak po korak, a zatim dajte svoj konačni odgovor između oznaka <ANSWER> X </ANSWER> gdje je X ispravno slovo opcije.",
+    "uk": "Нижче наведено питання з множинним вибором. Думайте крок за кроком, а потім надайте свою кінцеву відповідь між тегами <ANSWER> X </ANSWER>, де X — правильна буква.",
+    "pt": "A seguir está uma questão de múltipla escolha. Pense passo a passo e, em seguida, forneça sua resposta final entre as tags <ANSWER> X </ANSWER>, onde X é a letra correta.",
+    "bn": "নিম্নলিখিত একটি বহুনির্বাচনী প্রশ্ন। ধাপে ধাপে চিন্তা করুন এবং তারপর আপনার চূড়ান্ত উত্তর <ANSWER> X </ANSWER> ট্যাগের মধ্যে প্রদান করুন, যেখানে X সঠিক অক্ষর চয়েস।",
+    "te": "కింద ఇచ్చినది ఒక బహుళ ఎంపిక ప్రశ్న. దశల వారీగా ఆలోచించండి మరియు తర్వాత మీ తుది సమాధానాన్ని <ANSWER> X </ANSWER> ట్యాగ్ల మధ్య అందించండి, ఇక్కడ X సరైన అక్షర ఎంపిక.",
+    "ne": "तलको प्रश्न बहुविकल्पीय छ। चरण दर चरण सोच्नुहोस् र त्यसपछि आफ्नो अन्तिम उत्तर <ANSWER> X </ANSWER> ट्यागहरू बीचमा दिनुहोस्, जहाँ X सही अक्षर विकल्प हो।",
+    "sr": "Следеће је питање са више избора. Размишљајте корак по корак, а затим дајте свој коначни одговор између тагова <ANSWER> X </ANSWER>, где је X исправно слово опције.",
+    "nl": "De volgende is een meerkeuzevraag. Denk stap voor stap na en geef vervolgens je definitieve antwoord tussen de tags <ANSWER> X </ANSWER>, waarbij X de juiste letterkeuze is.",
+    "ar": "التالي هو سؤال اختيار من متعدد. فكر خطوة بخطوة ثم قدم إجابتك النهائية بين الوسوم <ANSWER> X </ANSWER>، حيث X هو الحرف الصحيح.",
+    "ru": "Ниже приведён вопрос с множественным выбором. Думайте шаг за шагом, а затем предоставьте ваш окончательный ответ между тегами <ANSWER> X </ANSWER>, где X — правильный буквенный вариант.",
+    "fr": "Ce qui suit est une question à choix multiples. Réfléchissez étape par étape, puis fournissez votre réponse finale entre les balises <ANSWER> X </ANSWER>, où X représente la bonne lettre.",
+    "fa": "موارد زیر یک سوال چندگزینه‌ای است. گام به گام فکر کنید و سپس پاسخ نهایی خود را بین تگ‌های <ANSWER> X </ANSWER> ارائه دهید، جایی که X حرف گزینه صحیح است.",
+    "de": "Die folgende Frage ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre endgültige Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X der richtige Buchstabe ist.",
+    "lt": "Toliau pateikiamas klausimas su keliomis atsakymų galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo galutinį atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra teisinga raidė."
+}
+
+
+# Deprecated
 SYSTEM_MESSAGES = {
     "en": "You are given a multiple-choice question to answer. You MUST respond only with the number corresponding to the correct answer, without any additional text or explanation.",
     "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید فقط با شماره صحیح پاسخ دهید و هیچ توضیح اضافی ارائه ندهید.",
@@ -411,7 +433,7 @@ def parse_openai_input(
         question = [{"type": "text", "text": question_text}]
 
     # Parse options. Handle options with images carefully by inclusion in the conversation.
-    parsed_options = []
+    parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {
         "type": "image_url",
@@ -496,7 +518,7 @@ def parse_anthropic_input(
         question = {"type": "text", "text": question_text}
 
     # Parse options. Handle options with images carefully by inclusion in the conversation.
-    parsed_options = []
+    parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {
         "type": "image_url",
@@ -584,7 +606,7 @@ def parse_qwen25_input(
             }
         ]
 
-    parsed_options = []
+    parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {"type": "image", "image": "file:///{image_path}"}
 
@@ -658,7 +680,7 @@ def parse_qwen2_input(
             }
         ]
 
-    parsed_options = []
+    parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {"type": "image"}
 
