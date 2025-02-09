@@ -17,7 +17,7 @@ from model_utils import (
     MAX_TOKENS,
 )
 
-IMAGE_ROOT = ""
+IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
 
 
 def parse_args():
@@ -100,7 +100,6 @@ def evaluate_model(args):
 
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
-    system_message = fetch_system_message(SYSTEM_MESSAGES, lang)
 
     # Load dataset
     dataset = load_and_filter_dataset(
@@ -112,6 +111,7 @@ def evaluate_model(args):
     results = []
     for question in tqdm(dataset):
         lang = question["language"]
+        system_message = fetch_system_message(SYSTEM_MESSAGES, lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(

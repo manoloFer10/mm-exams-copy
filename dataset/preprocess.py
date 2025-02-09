@@ -1,4 +1,5 @@
-from datasets import load_from_disk, concatenate_datasets
+from collections import Counter
+from datasets import load_from_disk, concatenate_datasets, Dataset
 from functools import partial
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import pickle
 
 
 def main():
+    random.seed(42)
     dataset = load_from_disk("dataset/full.hf")
     print(dataset)
     initial_questions = len(dataset)
@@ -396,7 +398,7 @@ def main():
         return capped_dataset
 
     multimodal_dataset = cap_mm_questions_per_language(multimodal_dataset, stats)
-    multimodal_dataset = dataset.from_list(multimodal_dataset)
+    multimodal_dataset = Dataset.from_list(multimodal_dataset)
 
     def cap_text_questions_per_language(
         dataset, stats, max_questions_per_language=1000
@@ -465,11 +467,36 @@ def main():
         return capped_dataset
 
     text_dataset = cap_text_questions_per_language(text_dataset, stats)
-    text_dataset = dataset.from_list(text_dataset)
-    stratified_dataset = concatenate_datasets([multimodal_dataset, text_dataset])
+    text_dataset = Dataset.from_list(text_dataset)
 
-    # Print final statistics after capping
-    # print(f"Number of questions after capping: {len(stratified_dataset)}")
+    mm_language_counts = Counter(multimodal_dataset["language"])
+    filtered_splits = {}
+
+    def filter_and_sample_text(dataset, mm_counts):
+        # Filter only the samples that match the current language
+        dataset = dataset.filter(lambda example: example["language"] in mm_counts)
+
+        language_to_samples = {}
+        for example in dataset:
+            lang = example["language"]
+            if lang not in language_to_samples:
+                language_to_samples[lang] = []
+            language_to_samples[lang].append(example)
+
+        sampled_examples = []
+        for lang, samples in language_to_samples.items():
+            max_samples = mm_language_counts[lang]
+            if len(samples) > max_samples:
+                sampled_examples.extend(random.sample(samples, max_samples))
+            else:
+                sampled_examples.extend(samples)
+
+        # Convert the sampled examples back to a Hugging Face Dataset
+        sampled_dataset = Dataset.from_list(sampled_examples)
+        return sampled_dataset
+
+    # Combine all filtered language datasets into a single dataset
+    text_dataset = filter_and_sample_text(text_dataset, mm_language_counts)
 
     # compute new statistics
     stratified_stats = {
@@ -488,6 +515,8 @@ def main():
         "questions_by_language_and_general_category": {},
         "multimodal_by_language_and_general_category": {},
     }
+
+    stratified_dataset = concatenate_datasets([multimodal_dataset, text_dataset])
 
     stratified_dataset.map(
         partial(collect_stats, stats=stratified_stats), load_from_cache_file=False
@@ -511,10 +540,15 @@ def main():
         example["answer"] = new_answer_index
         return example
 
+    stratified_dataset = stratified_dataset.map(
+        reduce_options_to_four, load_from_cache_file=False
+    )
+
     with open("dataset/stast.pkl", "wb") as f:
         pickle.dump(stats, f)
 
     with open("dataset/stratified_stats.pkl", "wb") as f:
+
         pickle.dump(stratified_stats, f)
 
     stratified_dataset.save_to_disk("dataset/stratified_dataset.hf")
