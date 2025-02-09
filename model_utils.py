@@ -15,11 +15,10 @@ from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 
-TEMPERATURE = 0 # Set to 0.7
-MAX_TOKENS = 1  # Only output the option chosen.
-# MAX_TOKENS = 256 
+TEMPERATURE = 0.7 # Set to 0.7
+MAX_TOKENS = 256 
 
-SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "qwen2.5-7b", "gemini-2.0-flash-exp"] # "claude-3-5-haiku-latest" haiku does not support image input
+SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "qwen2.5-7b", "gemini-1.5-pro"] # "claude-3-5-haiku-latest" haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -131,7 +130,7 @@ def initialize_model(
         model = client
         processor = None
 
-    elif model_name == 'gemini-2.0-flash-exp':
+    elif model_name == 'gemini-1.5-pro':
 
         client = OpenAI(
             api_key=api_key,
@@ -194,7 +193,7 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         query_molmo(model, processor, prompt, images)
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro']:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == 'claude-3-5-sonnet-latest':
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -340,7 +339,7 @@ def generate_prompt(
     model_name: str,
     question: dict,
     lang: str,
-    system_message,
+    instruction,
     few_shot_setting: str = "zero-shot",
 ):
     if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
@@ -349,7 +348,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             lang,
-            system_message,
+            instruction,
             few_shot_setting,
         )
     elif model_name == 'qwen2.5-7b':
@@ -358,16 +357,16 @@ def generate_prompt(
             question["image"],
             question["options"],
             lang,
-            system_message,
+            instruction,
             few_shot_setting
         )
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro']:
         return parse_openai_input(
             question["question"],
             question["image"],
             question["options"],
             lang,
-            system_message,
+            instruction,
             few_shot_setting,
         )
     elif model_name == "maya":
@@ -377,13 +376,13 @@ def generate_prompt(
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "molmo":
-        # Add molmo querying logic
+
         return parse_molmo_inputs(
             question["question"],
             question["image"],
             question["options"],
             lang,
-            system_message,
+            instruction,
             few_shot_setting
         )
     elif model_name == 'claude-3-5-sonnet-latest':
@@ -392,7 +391,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             lang,
-            system_message,
+            instruction,
             few_shot_setting,
         )
     else:
@@ -400,7 +399,7 @@ def generate_prompt(
 
 
 def parse_openai_input(
-    question_text, question_image, options_list, lang, system_message, few_shot_setting
+    question_text, question_image, options_list, lang, instruction, few_shot_setting
 ):
     """
     Outputs: conversation dictionary supported by OpenAI.
@@ -441,7 +440,7 @@ def parse_openai_input(
     }
 
     for i, option in enumerate(options_list):
-        option_indicator = f"{i+1})"
+        option_indicator = f"{chr(65+i)})"
         if option.lower().endswith(".png"):
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -480,12 +479,11 @@ def parse_openai_input(
     return messages, None #image paths not expected for openai client.
 
 def parse_anthropic_input(
-    question_text, question_image, options_list, lang, system_message, few_shot_setting
+    question_text, question_image, options_list, lang, instruction, few_shot_setting
 ):
     """
     Outputs: conversation dictionary supported by Anthropic.
     """
-    # review, claude-3-5-sonnet-latest might not support conversation items inside content
     system_message = {"role": "system", "content": system_message}
 
     def encode_image(image_path):
@@ -515,31 +513,30 @@ def parse_anthropic_input(
             }
         ]
     else:
-        question = {"type": "text", "text": question_text}
+        question = [{"type": "text", "text": question_text}]
 
     # Parse options. Handle options with images carefully by inclusion in the conversation.
     parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {
-        "type": "image_url",
-        "image_url": {"url": "data:image/png;base64,{base64_image}"},
-    }
+
 
     for i, option in enumerate(options_list):
-        option_indicator = f"{i+1})"
+        option_indicator = f"{chr(65+i)})"
         if option.lower().endswith(".png"):
             # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
+            new_image_option = {
+                    "type": "image",
+                    "source":
+                        {"type": "base64", 
+                        "media_type": "image/png", 
+                        "data": encode_image(option)}
+            }            
             new_text_option = only_text_option.copy()
             formated_text = new_text_option["text"].format(text=option_indicator + "\n")
             new_text_option["text"] = formated_text
 
             parsed_options.append(new_text_option)
-            parsed_options.append(
-                new_image_option["image_url"]["url"].format(
-                    base64_image=encode_image(option)
-                )
-            )
+            parsed_options.append(new_image_option)
 
         else:
             # Generating the dict format of the conversation if the option is not an image
@@ -562,7 +559,7 @@ def parse_anthropic_input(
     else:
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-    return messages, None #image paths not expected for openai client.
+    return messages, None #image paths not expected for anthropic client.
 
 def parse_molmo_inputs(question_text, question_image, options_list, lang, instruction, few_shot_setting):
   for option in options_list:
@@ -580,12 +577,12 @@ def parse_molmo_inputs(question_text, question_image, options_list, lang, instru
   return prompt, question_image
 
 def parse_qwen25_input(
-    question_text, question_image, options_list, lang, system_message, few_shot_setting
+    question_text, question_image, options_list, lang, instruction, few_shot_setting
 ):
     """
     Outputs: conversation dictionary supported by qwen2.5 .
     """
-    system_message = {"role": "system", "content": system_message}
+    system_message = {"role": "system", "content": instruction}
 
     if question_image:
         question = [
@@ -612,7 +609,7 @@ def parse_qwen25_input(
 
     images_paths = []
     for i, option in enumerate(options_list):
-        option_indicator = f"{i+1})"
+        option_indicator = f"{chr(65+i)})"
         if option.lower().endswith(".png"):  # Checks if it is a png file
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -657,12 +654,12 @@ def parse_qwen25_input(
 
 # ERASE: should erase after 2.5 works well
 def parse_qwen2_input(
-    question_text, question_image, options_list, lang, system_message, few_shot_setting
+    question_text, question_image, options_list, lang, instruction, few_shot_setting
 ): 
     """
     Outputs: conversation dictionary supported by qwen.
     """
-    system_message = {"role": "system", "content": system_message}
+    system_message = {"role": "system", "content": instruction}
 
     if question_image:
         question = [
@@ -686,7 +683,7 @@ def parse_qwen2_input(
 
     images_paths = []
     for i, option in enumerate(options_list):
-        option_indicator = f"{i+1})"
+        option_indicator = f"{chr(65+i)})"
         if option.lower().endswith(".png"):  # Checks if it is a png file
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -741,10 +738,10 @@ def format_answer(answer: str):
     match = re.search(pattern, answer)
 
     if match:
-        letter = match.group(1).upper()  #
+        letter = match.group(1).upper() 
         return ord(letter) - ord('A')
     else:
-        return None
+        return f'Unable to determine answer from tags, Answer: {answer}'
 
 
 def fetch_cot_instruction(lang: str) -> str:
