@@ -10,9 +10,8 @@ from model_utils import (
     initialize_model,
     query_model,
     generate_prompt,
-    fetch_system_message,
+    fetch_cot_instruction,
     SUPPORTED_MODELS,
-    SYSTEM_MESSAGES,
     TEMPERATURE,
     MAX_TOKENS
 )
@@ -92,7 +91,7 @@ def evaluate_model(args):
     
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
-    system_message = fetch_system_message(SYSTEM_MESSAGES, lang)
+    system_message = fetch_cot_instruction(lang) 
 
     # Load dataset
     dataset = load_and_filter_dataset(
