@@ -3,10 +3,12 @@ import torch
 import re
 from transformers import (
                         Qwen2VLForConditionalGeneration,
+                        Qwen2_5_VLForConditionalGeneration,
                         AutoProcessor,
                         AutoModelForCausalLM, 
                         GenerationConfig
                         )
+from qwen_vl_utils import process_vision_info # pip install git+https://github.com/huggingface/transformers accelerate
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
@@ -17,7 +19,7 @@ TEMPERATURE = 0 # Set to 0.7
 MAX_TOKENS = 1  # Only output the option chosen.
 # MAX_TOKENS = 256 
 
-SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "gemini-2.0-flash-exp"] # "claude-3-5-haiku-latest" haiku does not support image input
+SUPPORTED_MODELS = ["gpt-4o-mini", "qwen2-7b", "qwen2.5-7b", "gemini-2.0-flash-exp"] # "claude-3-5-haiku-latest" haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -80,9 +82,23 @@ def initialize_model(
             local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", local_files_only=True
+            Path(model_path) / "processor", 
+            local_files_only=True
         )
         print(f"Model loaded from {model_path}")
+
+    elif model_name =="qwen2.5-7b":
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            Path(model_path) / "model", #"Qwen/Qwen2.5-VL-7B-Instruct" 
+            temperature=TEMPERATURE,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            local_files_only=True
+        )
+        processor = AutoProcessor.from_pretrained(
+            Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
+            local_files_only=True
+        )
 
     elif model_name == "pangea":
         # Add Pangea initialization logic
@@ -110,17 +126,20 @@ def initialize_model(
     elif model_name == 'molmo':
 
         processor = AutoProcessor.from_pretrained(
-            'allenai/Molmo-7B-D-0924',
-            trust_remote_code=True,
-            torch_dtype='auto',
-            device_map='auto'
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            'allenai/Molmo-7B-D-0924',
+            Path(model_path) / "processor", # 'allenai/Molmo-7B-D-0924',
             trust_remote_code=True,
             torch_dtype='auto',
             device_map='auto',
-            temperature= TEMPERATURE
+            local_files_only=True
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            Path(model_path) / "model", #'allenai/Molmo-7B-D-0924',
+            trust_remote_code=True,
+            temperature=TEMPERATURE,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            temperature= TEMPERATURE,
+            local_files_only=True
         )
     else:
         raise NotImplementedError(
@@ -142,8 +161,11 @@ def query_model(
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen2-7b":
-        return query_qwen(model, processor, prompt, images, device)
+    if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
+        return query_qwen2(model, processor, prompt, images, device)
+
+    elif model_name == 'qwen2.5-7b':
+        return query_qwen25(model, processor, prompt, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
@@ -222,8 +244,8 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     output_text = response.content[0].text
     return format_answer(output_text)
 
-
-def query_qwen(
+# ERASE: should erase after 2.5 works well
+def query_qwen2(
     model,
     processor,
     prompt: list,
@@ -258,6 +280,39 @@ def query_qwen(
     torch.cuda.empty_cache()
     return format_answer(response[0])
 
+def query_qwen25(
+    model,
+    processor,
+    prompt: list,
+    device="cuda",
+    max_tokens=MAX_TOKENS
+):
+    text = processor.apply_chat_template(
+        prompt, tokenize=False, add_generation_prompt=True
+    )
+
+    image_inputs, video_inputs = process_vision_info(prompt)
+
+    inputs = processor(
+        text=[text],
+        images=image_inputs,
+        videos=video_inputs,
+        padding=True,
+        return_tensors="pt",
+    ).to(device)
+
+    # Generate response
+    with autocast("cuda"):
+        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
+    generated_ids = [
+        output_ids[len(input_ids) :]
+        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
+    ]
+    response = processor.batch_decode(
+        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+    )
+    return format_answer(response[0])
+
 
 def generate_prompt(
     model_name: str,
@@ -266,14 +321,23 @@ def generate_prompt(
     system_message,
     few_shot_setting: str = "zero-shot",
 ):
-    if model_name == "qwen2-7b":
-        return parse_qwen_input(
+    if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
+        return parse_qwen2_input(
             question["question"],
             question["image"],
             question["options"],
             lang,
             system_message,
             few_shot_setting,
+        )
+    elif model_name == 'qwen2.5-7b':
+        return parse_qwen25_input(
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            system_message,
+            few_shot_setting
         )
     elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-2.0-flash-exp']:
         return parse_openai_input(
@@ -493,9 +557,86 @@ def parse_molmo_inputs(question_text, question_image, options_list, lang, instru
   prompt += question + options + '\nAnswer:'
   return prompt, question_image
 
-def parse_qwen_input(
+def parse_qwen25_input(
     question_text, question_image, options_list, lang, system_message, few_shot_setting
 ):
+    """
+    Outputs: conversation dictionary supported by qwen2.5 .
+    """
+    system_message = {"role": "system", "content": system_message}
+
+    if question_image:
+        question = [
+            {
+                "type": "text",
+                "text": f"Question: {question_text}"
+            },
+            {
+                "type": "image",
+                "image": f"file:///{question_image}"
+            }
+        ]
+    else:
+        question = [
+            {
+                "type": "text",
+                "text": f"Question: {question_text}",
+            }
+        ]
+
+    parsed_options = []
+    only_text_option = {"type": "text", "text": "{text}"}
+    only_image_option = {"type": "image", "image": "file:///{image_path}"}
+
+    images_paths = []
+    for i, option in enumerate(options_list):
+        option_indicator = f"{i+1})"
+        if option.lower().endswith(".png"):  # Checks if it is a png file
+            # Generating the dict format of the conversation if the option is an image
+            new_image_option = only_image_option.copy()
+            new_image_option["image"] = new_image_option["image"].format(image_path=option)
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
+            new_text_option["text"] = formated_text
+
+            # option delimiter "1)", "2)", ...
+            parsed_options.append(new_text_option)
+            # image for option
+            parsed_options.append(new_image_option)
+
+            # Ads the image for output
+            images_paths.append(option)
+
+        else:
+            # Generating the dict format of the conversation if the option is not an image
+            new_text_option = only_text_option.copy()
+            formated_text = new_text_option["text"].format(
+                text=option_indicator + option + "\n"
+            )
+            new_text_option["text"] = formated_text
+            parsed_options.append(
+                new_text_option
+            )  # Puts the option text if it isn't an image.
+
+    user_text = question + parsed_options
+    user_message = {"role": "user", "content": user_text}
+
+    # Enable few-shot setting
+    if few_shot_setting == "few-shot":
+        user_message["content"] = fetch_few_shot_examples(lang) + user_message["content"]
+        messages = [system_message, user_message]
+    elif few_shot_setting == "zero-shot":
+        messages = [system_message, user_message]
+    else:
+        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
+
+    return messages, None #image paths processed in messages by process_vision_info.      
+
+
+# ERASE: should erase after 2.5 works well
+def parse_qwen2_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+): 
     """
     Outputs: conversation dictionary supported by qwen.
     """

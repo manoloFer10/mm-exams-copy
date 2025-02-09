@@ -7,3 +7,4 @@ torch==2.5.1
 transformers==4.47.1 # maybe its 4.48.3
 matplotlib
 
+
