@@ -8,6 +8,8 @@ from transformers import ( # pip install git+https://github.com/huggingface/tran
                         AutoModelForCausalLM, 
                         GenerationConfig
                         )
+from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+from deepseek_vl.utils.io import load_pil_images
 from qwen_vl_utils import process_vision_info  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
@@ -23,7 +25,8 @@ SUPPORTED_MODELS = ["gpt-4o",
                     "qwen2.5-7b", 
                     "gemini-1.5-pro", 
                     "gemini-1.5-flash", 
-                    "claude-3-5-sonnet-latest"] # "claude-3-5-haiku-latest" haiku does not support image input
+                    "claude-3-5-sonnet-latest",
+                    "molmo"] # "claude-3-5-haiku-latest" haiku does not support image input
 
 
 INSTRUCTIONS_COT = {
@@ -105,7 +108,37 @@ def initialize_model(
             Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
             local_files_only=True
         )
+    
+    elif model_name =="deepseekVL2-16B":
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            Path(model_path) / "model", #"Qwen/Qwen2.5-VL-7B-Instruct" 
+            temperature=TEMPERATURE,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            local_files_only=True
+        )
+        processor = AutoProcessor.from_pretrained(
+            Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
+            local_files_only=True
+        )
 
+    elif model_name == 'molmo':
+
+        processor = AutoProcessor.from_pretrained(
+            Path(model_path) / "processor", # 'allenai/Molmo-7B-D-0924',
+            trust_remote_code=True,
+            torch_dtype='auto',
+            device_map='auto',
+            local_files_only=True
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            Path(model_path) / "model", #'allenai/Molmo-7B-D-0924',
+            trust_remote_code=True,
+            temperature=TEMPERATURE,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            local_files_only=True
+        )
     elif model_name == "pangea":
         # Add Pangea initialization logic
         raise NotImplementedError(f"Model: {model_name} not available yet")
@@ -129,23 +162,6 @@ def initialize_model(
         model = client
         processor = None
 
-    elif model_name == 'molmo':
-
-        processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", # 'allenai/Molmo-7B-D-0924',
-            trust_remote_code=True,
-            torch_dtype='auto',
-            device_map='auto',
-            local_files_only=True
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "model", #'allenai/Molmo-7B-D-0924',
-            trust_remote_code=True,
-            temperature=TEMPERATURE,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            local_files_only=True
-        )
     else:
         raise NotImplementedError(
             f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
@@ -743,6 +759,9 @@ def format_answer(answer: str):
 
 
 def fetch_cot_instruction(lang: str) -> str:
+    """
+    Retrieves the CoT Instruction for the given lang.
+    """
     if lang in INSTRUCTIONS_COT.keys():
         return INSTRUCTIONS_COT[lang]
     else:
