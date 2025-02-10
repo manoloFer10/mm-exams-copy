@@ -7,9 +7,8 @@ from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 
-TEMPERATURE = 0  # Set to 0.7
-MAX_TOKENS = 1  # Only output the option chosen.
-# MAX_TOKENS = 256
+TEMPERATURE = 0.7  # Set to 0.7
+MAX_TOKENS = 256  # Only output the option chosen.
 
 SUPPORTED_MODELS = [
     "gpt-4o-mini",
@@ -215,8 +214,6 @@ def query_qwen(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
-    for img in images:
-        img.close()
     torch.cuda.empty_cache()
     return format_answer(response[0])
 
@@ -514,18 +511,23 @@ def format_answer(answer: str):
     """
     Returns: A zero-indexed integer corresponding to the answer.
     """
-    if not isinstance(answer, str):
-        raise ValueError(f"Invalid input: '{answer}'.")
-    if "A" <= answer <= "Z":
-        # Convert letter to zero-indexed number
-        return ord(answer) - ord("A")
-    elif "1" <= answer <= "9":
-        # Convert digit to zero-indexed number
-        return int(answer) - 1
-    else:
-        raise ValueError(
-            f"Invalid answer: '{answer}'. Must be a letter (A-Z) or a digit (1-9)."
-        )
+    try:
+        if not isinstance(answer, str):
+            raise ValueError(f"Invalid input: '{answer}'.")
+        if "A" <= answer <= "Z":
+            # Convert letter to zero-indexed number
+            return ord(answer) - ord("A")
+        elif "1" <= answer <= "9":
+            # Convert digit to zero-indexed number
+            return int(answer) - 1
+        else:
+            raise ValueError(
+                f"Invalid answer: '{answer}'. Must be a letter (A-Z) or a digit (1-9)."
+            )
+    except:
+        import code
+
+        code.intearact(local=locals())
 
 
 def fetch_system_message(system_messages: dict[str, str], lang: str) -> str:

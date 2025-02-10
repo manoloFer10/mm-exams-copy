@@ -69,7 +69,8 @@ def parse_args():
 
 
 def map_image_path(example):
-    example["image"] = IMAGE_ROOT + example["image"]
+    if example["image"] is not None:
+        example["image"] = IMAGE_ROOT + example["image"]
     return example
 
 
