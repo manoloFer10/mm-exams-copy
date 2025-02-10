@@ -1,6 +1,16 @@
 import base64
 import torch
 import re
+from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLForConditionalGeneration,
+    AutoProcessor,
+    AutoModelForCausalLM,
+    GenerationConfig,
+)
+from qwen_vl_utils import (
+    process_vision_info,
+)  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from transformers import ( # pip install git+https://github.com/huggingface/transformers accelerate
                         Qwen2VLForConditionalGeneration,
                         Qwen2_5_VLForConditionalGeneration,
@@ -17,8 +27,8 @@ from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 
-TEMPERATURE = 0.7 
-MAX_TOKENS = 256 
+TEMPERATURE = 0.7
+MAX_TOKENS = 256
 
 SUPPORTED_MODELS = ["gpt-4o", 
                     "qwen2-7b", 
@@ -47,7 +57,7 @@ INSTRUCTIONS_COT = {
     "fr": "Ce qui suit est une question à choix multiple. Réfléchissez étape par étape, puis donnez votre RÉPONSE FINALE entre les balises <ANSWER> X </ANSWER>, où X est UNIQUEMENT la lettre correcte de votre choix. N'écrivez pas de texte supplémentaire entre les balises.",
     "fa": "متن زیر یک سوال چندگزینه‌ای است. مرحله به مرحله فکر کنید و سپس پاسخ نهایی خود را بین تگ‌های <ANSWER> X </ANSWER> قرار دهید، جایی که X تنها حرف صحیح انتخاب شماست. متن اضافی بین تگ‌ها ننویسید.",
     "de": "Im Folgenden ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre ENDGÜLTIGE Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X NUR der korrekte Buchstabe Ihrer Wahl ist. Schreiben Sie keinen zusätzlichen Text zwischen den Tags.",
-    "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų."
+    "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų.",
 }
 
 
@@ -91,18 +101,17 @@ def initialize_model(
             local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", 
-            local_files_only=True
+            Path(model_path) / "processor", local_files_only=True
         )
         print(f"Model loaded from {model_path}")
 
     elif model_name =="qwen2.5-7b":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model", #"Qwen/Qwen2.5-VL-7B-Instruct" 
+            Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
-            local_files_only=True
+            local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
             Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
@@ -177,31 +186,32 @@ def query_model(
     images,
     device: str = "cuda",
     temperature=TEMPERATURE,
-    max_tokens=MAX_TOKENS
+    max_tokens=MAX_TOKENS,
 ):
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
+    if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
         answer = query_qwen2(model, processor, prompt, images, device)
 
-    elif model_name == 'qwen2.5-7b':
+    elif model_name == "qwen2.5-7b":
         answer = query_qwen25(model, processor, prompt, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "molmo":
-        answer = query_molmo(model, processor, prompt, images)
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', "gemini-1.5-flash"]:
-        answer = query_openai(model, model_name, prompt, temperature, max_tokens)
-    elif model_name == 'claude-3-5-sonnet-latest':
-        answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
+        # Add molmo querying logic
+        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
+        return query_openai(model, model_name, prompt, temperature, max_tokens)
+    elif model_name == "claude-3-5-sonnet-latest":
+        return query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-    
+
     return format_answer(answer)
 
 
@@ -209,18 +219,18 @@ def query_pangea():
     pass
 
 
-def query_molmo(model,
+def query_molmo(
+    model,
     processor,
     prompt: list,
     image_path: list,
 ):
-    if prompt == 'multi-image':
-        print('Question was multi-image, molmo does not support multi-image inputs.')
-        return 'multi-image detected'
+    if prompt == "multi-image":
+        print("Question was multi-image, molmo does not support multi-image inputs.")
+        return "multi-image detected"
     else:
         inputs = processor.process(
-            images=[Image.open(image_path).convert("RGB")],
-            text=prompt
+            images=[Image.open(image_path).convert("RGB")], text=prompt
         )
         # move inputs to the correct device and make a batch of size 1
         inputs = {k: v.to(model.device).unsqueeze(0) for k, v in inputs.items()}
@@ -229,16 +239,16 @@ def query_molmo(model,
         output = model.generate_from_batch(
             inputs,
             GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
-            tokenizer=processor.tokenizer
+            tokenizer=processor.tokenizer,
         )
 
         # only get generated tokens; decode them to text
-        generated_tokens = output[0,inputs['input_ids'].size(1):]
-        generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        generated_tokens = output[0, inputs["input_ids"].size(1) :]
+        generated_text = processor.tokenizer.decode(
+            generated_tokens, skip_special_tokens=True
+        )
 
         return generated_text
-
-
 
 
 def query_openai(client, model_name, prompt, temperature, max_tokens):
@@ -249,11 +259,12 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
         max_tokens=max_tokens,
     )
     output_text = response.choices[0].message.content.strip()
-    return output_text
+    return format_answer(output_text)
+
 
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
-    system_message = prompt[0]['content']
+    system_message = prompt[0]["content"]
     user_messages = prompt[1]
 
     response = client.messages.create(
@@ -266,6 +277,7 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     output_text = response.content[0].text
     return output_text
 
+
 # ERASE: should erase after 2.5 works well
 def query_qwen2(
     model,
@@ -273,12 +285,21 @@ def query_qwen2(
     prompt: list,
     image_paths: list,
     device="cuda",
-    max_tokens=MAX_TOKENS
+    max_tokens=MAX_TOKENS,
 ):
-    images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
+    # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
+    try:
+        images = [
+            Image.open(image_path).convert("RGB").resize((224, 224))
+            for image_path in image_paths
+        ]
+    except:
+        return "Image not found"
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
+    if len(images) == 0:
+        images = None
     inputs = processor(
         text=[text_prompt],
         images=images,
@@ -287,28 +308,23 @@ def query_qwen2(
     ).to(device)
 
     # Generate response
-    with autocast("cuda"):
+    # with torch.no_grad():
+    with torch.inference_mode():
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
     ]
+
     response = processor.batch_decode(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
 
-    for img in images:
-        img.close()
     torch.cuda.empty_cache()
     return response[0]
 
-def query_qwen25(
-    model,
-    processor,
-    prompt: list,
-    device="cuda",
-    max_tokens=MAX_TOKENS
-):
+
+def query_qwen25(model, processor, prompt: list, device="cuda", max_tokens=MAX_TOKENS):
     text = processor.apply_chat_template(
         prompt, tokenize=False, add_generation_prompt=True
     )
@@ -324,16 +340,19 @@ def query_qwen25(
     ).to(device)
 
     # Generate response
-    with autocast("cuda"):
+    # with torch.no_grad():
+    with torch.inference_mode():
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
         output_ids[len(input_ids) :]
         for input_ids, output_ids in zip(inputs.input_ids, output_ids)
     ]
+
     response = processor.batch_decode(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
-    return response[0]
+    torch.cuda.empty_cache()
+    return format_answer(response[0])
 
 
 def generate_prompt(
@@ -343,7 +362,7 @@ def generate_prompt(
     instruction,
     few_shot_setting: str = "zero-shot",
 ):
-    if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
+    if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
         return parse_qwen2_input(
             question["question"],
             question["image"],
@@ -352,16 +371,7 @@ def generate_prompt(
             instruction,
             few_shot_setting,
         )
-    elif model_name == 'qwen2.5-7b':
-        return parse_qwen25_input(
-            question["question"],
-            question["image"],
-            question["options"],
-            lang,
-            instruction,
-            few_shot_setting
-        )
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', "gemini-1.5-flash"]:
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
         return parse_openai_input(
             question["question"],
             question["image"],
@@ -377,16 +387,9 @@ def generate_prompt(
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "molmo":
-
-        return parse_molmo_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            lang,
-            instruction,
-            few_shot_setting
-        )
-    elif model_name == 'claude-3-5-sonnet-latest':
+        # Add molmo querying logic
+        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
+    elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],
             question["image"],
@@ -412,7 +415,7 @@ def parse_openai_input(
             with open(image_path, "rb") as image_file:
                 binary_data = image_file.read()
                 base_64_encoded_data = base64.b64encode(binary_data)
-                base64_string = base_64_encoded_data.decode('utf-8')
+                base64_string = base_64_encoded_data.decode("utf-8")
                 return base64_string
         except Exception as e:
             raise TypeError(f"Image {image_path} could not be encoded. {e}")
@@ -420,14 +423,11 @@ def parse_openai_input(
     if question_image:
         base64_image = encode_image(question_image)
         question = [
+            {"type": "text", "text": question_text},
             {
-                "type": "text", 
-                "text": question_text
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
             },
-            {
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-            }
         ]
     else:
         question = [{"type": "text", "text": question_text}]
@@ -470,14 +470,17 @@ def parse_openai_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message["content"] = fetch_few_shot_examples(lang) + user_message["content"]
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
     else:
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-    return messages, None #image paths not expected for openai client.
+    return messages, None  # image paths not expected for openai client.
+
 
 def parse_anthropic_input(
     question_text, question_image, options_list, lang, instruction, few_shot_setting
@@ -492,26 +495,23 @@ def parse_anthropic_input(
             with open(image_path, "rb") as image_file:
                 binary_data = image_file.read()
                 base_64_encoded_data = base64.b64encode(binary_data)
-                base64_string = base_64_encoded_data.decode('utf-8')
+                base64_string = base_64_encoded_data.decode("utf-8")
                 return base64_string
         except Exception as e:
             raise TypeError(f"Image {image_path} could not be encoded. {e}")
 
-
     if question_image:
         base64_image = encode_image(question_image)
         question = [
+            {"type": "text", "text": question_text},
             {
-                "type": "text", 
-                "text": question_text
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": base64_image,
+                },
             },
-            {
-                "type": "image", 
-                "source": 
-                    {"type": "base64", 
-                    "media_type": "image/png", 
-                    "data": base64_image}
-            }
         ]
     else:
         question = [{"type": "text", "text": question_text}]
@@ -520,18 +520,18 @@ def parse_anthropic_input(
     parsed_options = [{"type": "text", "text": "Options:\n"}]
     only_text_option = {"type": "text", "text": "{text}"}
 
-
     for i, option in enumerate(options_list):
         option_indicator = f"{chr(65+i)}. "
         if option.lower().endswith(".png"):
             # Generating the dict format of the conversation if the option is an image
             new_image_option = {
-                    "type": "image",
-                    "source":
-                        {"type": "base64", 
-                        "media_type": "image/png", 
-                        "data": encode_image(option)}
-            }            
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": encode_image(option),
+                },
+            }
             new_text_option = only_text_option.copy()
             formated_text = new_text_option["text"].format(text=option_indicator + "\n")
             new_text_option["text"] = formated_text
@@ -553,29 +553,41 @@ def parse_anthropic_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message["content"] = fetch_few_shot_examples(lang) + user_message["content"]
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
     else:
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-    return messages, None #image paths not expected for anthropic client.
+    return messages, None  # image paths not expected for openai client.
 
-def parse_molmo_inputs(question_text, question_image, options_list, lang, instruction, few_shot_setting):
-  for option in options_list:
-    if '.png' in option:
-      return 'multi-image', None
 
-  prompt = instruction + '\n\n'
-  question = 'Question: ' + question_text + '\n\n'
+def parse_qwen_input(
+    question_text, question_image, options_list, lang, system_message, few_shot_setting
+):
+    return messages, None  # image paths not expected for anthropic client.
 
-  options = 'Options:\n'
-  for i, option in enumerate(options_list):
-    options += chr(65+i) + '. ' + option + '\n'
 
-  prompt += question + options + '\nAnswer:'
-  return prompt, question_image
+def parse_molmo_inputs(
+    question_text, question_image, options_list, lang, instruction, few_shot_setting
+):
+    for option in options_list:
+        if ".png" in option:
+            return "multi-image", None
+
+    prompt = instruction + "\n\n"
+    question = "Question: " + question_text + "\n\n"
+
+    options = "Options:\n"
+    for i, option in enumerate(options_list):
+        options += chr(65 + i) + ". " + option + "\n"
+
+    prompt += question + options + "\nAnswer:"
+    return prompt, question_image
+
 
 def parse_qwen25_input(
     question_text, question_image, options_list, lang, instruction, few_shot_setting
@@ -587,14 +599,8 @@ def parse_qwen25_input(
 
     if question_image:
         question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}"
-            },
-            {
-                "type": "image",
-                "image": f"file:///{question_image}"
-            }
+            {"type": "text", "text": f"Question: {question_text}"},
+            {"type": "image", "image": f"file:///{question_image}"},
         ]
     else:
         question = [
@@ -614,7 +620,9 @@ def parse_qwen25_input(
         if option.lower().endswith(".png"):  # Checks if it is a png file
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
-            new_image_option["image"] = new_image_option["image"].format(image_path=option)
+            new_image_option["image"] = new_image_option["image"].format(
+                image_path=option
+            )
             new_text_option = only_text_option.copy()
             formated_text = new_text_option["text"].format(text=option_indicator + "\n")
             new_text_option["text"] = formated_text
@@ -643,20 +651,22 @@ def parse_qwen25_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message["content"] = fetch_few_shot_examples(lang) + user_message["content"]
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
     else:
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
-    return messages, None #image paths processed in messages by process_vision_info.      
+    return messages, None  # image paths processed in messages by process_vision_info.
 
 
 # ERASE: should erase after 2.5 works well
 def parse_qwen2_input(
     question_text, question_image, options_list, lang, instruction, few_shot_setting
-): 
+):
     """
     Outputs: conversation dictionary supported by qwen.
     """
@@ -716,7 +726,9 @@ def parse_qwen2_input(
 
     # Enable few-shot setting
     if few_shot_setting == "few-shot":
-        user_message["content"] = fetch_few_shot_examples(lang) + user_message["content"]
+        user_message["content"] = (
+            fetch_few_shot_examples(lang) + user_message["content"]
+        )
         messages = [system_message, user_message]
     elif few_shot_setting == "zero-shot":
         messages = [system_message, user_message]
@@ -732,17 +744,17 @@ def parse_qwen2_input(
 def format_answer(answer: str):
     """
     Searchs for the answer between tags <Answer>.
-    
+
     Returns: A zero-indexed integer corresponding to the answer.
     """
     pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
     match = re.search(pattern, answer, re.IGNORECASE)
-        
+
     if match:
         # Extract and convert answer letter
         letter = match.group(1).upper()
-        election = ord(letter) - ord('A')
-        
+        election = ord(letter) - ord("A")
+
         # Extract reasoning by removing answer tag section
         start, end = match.span()
         reasoning = (answer[:start] + answer[end:]).strip()
@@ -754,7 +766,7 @@ def format_answer(answer: str):
         if re.search(r"<ANSWER>.*?</ANSWER>", answer):
             election = "Answer tag exists but contains invalid format"
         reasoning = answer.strip()
-    
+
     return reasoning, election
 
 
