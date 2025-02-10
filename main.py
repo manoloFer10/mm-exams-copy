@@ -13,8 +13,10 @@ from model_utils import (
     fetch_cot_instruction,
     SUPPORTED_MODELS,
     TEMPERATURE,
-    MAX_TOKENS
+    MAX_TOKENS,
 )
+
+IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
 
 
 def parse_args():
@@ -65,20 +67,27 @@ def parse_args():
     return args
 
 
+def map_image_path(example):
+    if example["image"] is not None:
+        example["image"] = IMAGE_ROOT + example["image"]
+    return example
+
+
 def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     """
     Load and filter the dataset based on language and number of samples.
     """
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
+    dataset = dataset.map(map_image_path)
     # Language
     # if lang != "all":
     #     dataset = dataset.filter(lambda sample: sample["language"] == lang)
     # else:
     #     print("evaluating all languages")
     # Level
-    # if num_samples is not None:
-    #     dataset = dataset.select(range(num_samples))
+    if num_samples is not None:
+        dataset = dataset.select(range(num_samples))
     return dataset
 
 
@@ -88,10 +97,9 @@ def evaluate_model(args):
     """
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
-    
+
     temperature = TEMPERATURE
     max_tokens = MAX_TOKENS
-    system_message = fetch_cot_instruction(lang) 
 
     # Load dataset
     dataset = load_and_filter_dataset(
@@ -103,23 +111,21 @@ def evaluate_model(args):
     results = []
     for question in tqdm(dataset):
         lang = question["language"]
+        system_message = fetch_cot_instruction(lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(
-            args.model,
-            question,
-            lang,
-            system_message,
-            args.setting
+            args.model, question, lang, system_message, args.setting
         )
         # Query model
-        reasoning, prediction = query_model(args.model,
-                                 model, 
-                                 processor, 
-                                 prompt, 
-                                 image_paths, 
-                                 temperature=temperature,
-                                 max_tokens=max_tokens
+        reasoning, prediction = query_model(
+            args.model,
+            model,
+            processor,
+            prompt,
+            image_paths,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         question["prediction_by_" + args.model] = prediction

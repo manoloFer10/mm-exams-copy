@@ -7,6 +7,10 @@ results/
 outputs/
 slurm/
 __pycache__/
+data/
+*.hf
+*.txt
+*.zip
+*.pkl
 tokens_mm_exams.json
 tests/
-
