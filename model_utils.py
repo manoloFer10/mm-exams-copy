@@ -1,24 +1,29 @@
 import base64
 import torch
 import re
-from transformers import (
+from transformers import ( # pip install git+https://github.com/huggingface/transformers accelerate
                         Qwen2VLForConditionalGeneration,
                         Qwen2_5_VLForConditionalGeneration,
                         AutoProcessor,
                         AutoModelForCausalLM, 
                         GenerationConfig
                         )
-from qwen_vl_utils import process_vision_info # pip install git+https://github.com/huggingface/transformers accelerate
+from qwen_vl_utils import process_vision_info  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 
-TEMPERATURE = 0.7 # Set to 0.7
+TEMPERATURE = 0.7 
 MAX_TOKENS = 256 
 
-SUPPORTED_MODELS = ["gpt-4o", "qwen2-7b", "qwen2.5-7b", "gemini-1.5-pro"] # "claude-3-5-haiku-latest" haiku does not support image input
+SUPPORTED_MODELS = ["gpt-4o", 
+                    "qwen2-7b", 
+                    "qwen2.5-7b", 
+                    "gemini-1.5-pro", 
+                    "gemini-1.5-flash", 
+                    "claude-3-5-sonnet-latest"] # "claude-3-5-haiku-latest" haiku does not support image input
 
 # Update manually with supported languages translation
 # SYSTEM_MESSAGES = {
@@ -130,7 +135,7 @@ def initialize_model(
         model = client
         processor = None
 
-    elif model_name == 'gemini-1.5-pro':
+    elif model_name in ['gemini-1.5-pro', "gemini-1.5-flash"]:
 
         client = OpenAI(
             api_key=api_key,
@@ -159,7 +164,6 @@ def initialize_model(
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
-            temperature= TEMPERATURE,
             local_files_only=True
         )
     else:
@@ -183,25 +187,26 @@ def query_model(
     Query the model based on the model name.
     """
     if model_name == "qwen2-7b": # ERASE: should erase after 2.5 works well
-        return query_qwen2(model, processor, prompt, images, device)
+        answer = query_qwen2(model, processor, prompt, images, device)
 
     elif model_name == 'qwen2.5-7b':
-        return query_qwen25(model, processor, prompt, device)
+        answer = query_qwen25(model, processor, prompt, device)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "molmo":
-        # Add molmo querying logic
-        query_molmo(model, processor, prompt, images)
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro']:
-        return query_openai(model, model_name, prompt, temperature, max_tokens)
+        answer = query_molmo(model, processor, prompt, images)
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', "gemini-1.5-flash"]:
+        answer = query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == 'claude-3-5-sonnet-latest':
-        return query_anthropic(model, model_name, prompt, temperature, max_tokens)
+        answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
+    
+    return format_answer(answer)
 
 
 def query_pangea():
@@ -235,7 +240,7 @@ def query_molmo(model,
         generated_tokens = output[0,inputs['input_ids'].size(1):]
         generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
-        return format_answer(generated_text)
+        return generated_text
 
 
 
@@ -248,7 +253,7 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
         max_tokens=max_tokens,
     )
     output_text = response.choices[0].message.content.strip()
-    return format_answer(output_text)
+    return output_text
 
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
@@ -263,7 +268,7 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
         max_tokens=max_tokens,
     )
     output_text = response.content[0].text
-    return format_answer(output_text)
+    return output_text
 
 # ERASE: should erase after 2.5 works well
 def query_qwen2(
@@ -299,7 +304,7 @@ def query_qwen2(
     for img in images:
         img.close()
     torch.cuda.empty_cache()
-    return format_answer(response[0])
+    return response[0]
 
 def query_qwen25(
     model,
@@ -332,7 +337,7 @@ def query_qwen25(
     response = processor.batch_decode(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
-    return format_answer(response[0])
+    return response[0]
 
 
 def generate_prompt(
@@ -360,7 +365,7 @@ def generate_prompt(
             instruction,
             few_shot_setting
         )
-    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro']:
+    elif model_name in ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', "gemini-1.5-flash"]:
         return parse_openai_input(
             question["question"],
             question["image"],
@@ -404,7 +409,7 @@ def parse_openai_input(
     """
     Outputs: conversation dictionary supported by OpenAI.
     """
-    system_message = {"role": "system", "content": system_message}
+    system_message = {"role": "system", "content": instruction}
 
     def encode_image(image_path):
         try:
@@ -440,7 +445,7 @@ def parse_openai_input(
     }
 
     for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)})"
+        option_indicator = f"{chr(65+i)}. "
         if option.lower().endswith(".png"):
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -484,7 +489,7 @@ def parse_anthropic_input(
     """
     Outputs: conversation dictionary supported by Anthropic.
     """
-    system_message = {"role": "system", "content": system_message}
+    system_message = {"role": "system", "content": instruction}
 
     def encode_image(image_path):
         try:
@@ -521,7 +526,7 @@ def parse_anthropic_input(
 
 
     for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)})"
+        option_indicator = f"{chr(65+i)}. "
         if option.lower().endswith(".png"):
             # Generating the dict format of the conversation if the option is an image
             new_image_option = {
@@ -609,7 +614,7 @@ def parse_qwen25_input(
 
     images_paths = []
     for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)})"
+        option_indicator = f"{chr(65+i)}. "
         if option.lower().endswith(".png"):  # Checks if it is a png file
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -683,7 +688,7 @@ def parse_qwen2_input(
 
     images_paths = []
     for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)})"
+        option_indicator = f"{chr(65+i)}. "
         if option.lower().endswith(".png"):  # Checks if it is a png file
             # Generating the dict format of the conversation if the option is an image
             new_image_option = only_image_option.copy()
@@ -735,13 +740,28 @@ def format_answer(answer: str):
     Returns: A zero-indexed integer corresponding to the answer.
     """
     pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
-    match = re.search(pattern, answer)
-
+    match = re.search(pattern, answer, re.IGNORECASE)
+    
+    result = {}
+    
     if match:
-        letter = match.group(1).upper() 
-        return ord(letter) - ord('A')
+        # Extract and convert answer letter
+        letter = match.group(1).upper()
+        answer = ord(letter) - ord('A')
+        
+        # Extract reasoning by removing answer tag section
+        start, end = match.span()
+        reasoning = (answer[:start] + answer[end:]).strip()
+        # Clean multiple whitespace
+        reasoning = re.sub(r"\s+", " ", reasoning)
     else:
-        return f'Unable to determine answer from tags, Answer: {answer}'
+        # Error handling cases
+        answer = "No valid answer tag found"
+        if re.search(r"<ANSWER>.*?</ANSWER>", answer):
+            answer = "Answer tag exists but contains invalid format"
+        reasoning = answer.strip()
+    
+    return reasoning, answer
 
 
 def fetch_cot_instruction(lang: str) -> str:
