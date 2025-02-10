@@ -113,7 +113,7 @@ def evaluate_model(args):
             args.setting
         )
         # Query model
-        prediction = query_model(args.model,
+        reasoning, prediction = query_model(args.model,
                                  model, 
                                  processor, 
                                  prompt, 
@@ -123,6 +123,7 @@ def evaluate_model(args):
         )
 
         question["prediction_by_" + args.model] = prediction
+        question["reasoning_by_" + args.model] = reasoning
         # question_json['prompt_used'] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)
