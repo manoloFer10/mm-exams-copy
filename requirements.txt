@@ -5,6 +5,7 @@ anthropic
 Pillow==11.1.0
 torch==2.5.1
 transformers==4.47.1 # maybe its 4.48.3
+qwen-vl-utils==0.0.8
 matplotlib
 
 
