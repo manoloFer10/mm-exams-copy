@@ -25,46 +25,26 @@ SUPPORTED_MODELS = ["gpt-4o",
                     "gemini-1.5-flash", 
                     "claude-3-5-sonnet-latest"] # "claude-3-5-haiku-latest" haiku does not support image input
 
-# Update manually with supported languages translation
-# SYSTEM_MESSAGES = {
-#     "en": "You are given a multiple choice question for answering. You MUST only answer with the correct number of the answer. For example, if you are given the options 1, 2, 3, 4 and option 2 is correct, then you should return the number 2.",
-#     "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید تنها با شماره صحیح پاسخ را بدهید. به عنوان مثال، اگر گزینه‌های ۱، ۲، ۳، ۴ داده شده باشد و گزینه ۲ درست باشد، باید عدد ۲ را بازگردانید.",
-#     "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correcto de la respuesta. Por ejemplo, si se te dan las opciones 1, 2, 3, 4 y la opción 2 es correcta, entonces debes devolver el número 2.",
-#     "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে। উদাহরণস্বরূপ, যদি আপনাকে ১, ২, ৩, ৪ বিকল্প দেওয়া হয় এবং বিকল্প ২ সঠিক হয়, তবে আপনাকে সংখ্যা ২ ফেরত দিতে হবে।",
-#     "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से ही उत्तर देना चाहिए। उदाहरण के लिए, यदि आपको विकल्प 1, 2, 3, 4 दिए गए हैं और विकल्प 2 सही है, तो आपको नंबर 2 लौटाना चाहिए।",
-#     "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu. Pavyzdžiui, jei pateikiami variantai 1, 2, 3, 4, o teisingas variantas yra 2, turite grąžinti skaičių 2.",
-#     "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答。例如，如果给出的选项是1, 2, 3, 4，而选项2是正确的，那么您应该返回数字2。",
-#     "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord. Bijvoorbeeld, als je de opties 1, 2, 3, 4 krijgt en optie 2 is correct, dan moet je nummer 2 retourneren.",
-#     "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి. ఉదాహరణకు, మీకు 1, 2, 3, 4 ఎంపికలు ఇస్తే మరియు ఎంపిక 2 సరైనది అయితే, మీరు సంఖ్య 2ను తిరిగి ఇవ్వాలి.",
-#     "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише правильним номером відповіді. Наприклад, якщо вам дано варіанти 1, 2, 3, 4, і правильним є варіант 2, ви повинні повернути номер 2.",
-#     "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ। ਉਦਾਹਰਣ ਲਈ, ਜੇ ਤੁਹਾਨੂੰ ਵਿਕਲਪ 1, 2, 3, 4 ਦਿੱਤੇ ਜਾਂਦੇ ਹਨ ਅਤੇ ਵਿਕਲਪ 2 ਸਹੀ ਹੈ, ਤਾਂ ਤੁਹਾਨੂੰ ਨੰਬਰ 2 ਵਾਪਸ ਕਰਨਾ ਚਾਹੀਦਾ ਹੈ।",
-#     "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba správnym číslom odpovede. Napríklad, ak sú vám dané možnosti 1, 2, 3, 4 a správnou možnosťou je 2, mali by ste vrátiť číslo 2.",
-#     "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko poprawnym numerem odpowiedzi. Na przykład, jeśli podano opcje 1, 2, 3, 4, a poprawną opcją jest 2, powinieneś zwrócić liczbę 2.",
-#     "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze správným číslem odpovědi. Například, pokud dostanete možnosti 1, 2, 3, 4 a možnost 2 je správná, měli byste vrátit číslo 2.",
-#     "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten. Wenn Ihnen beispielsweise die Optionen 1, 2, 3, 4 gegeben werden und Option 2 korrekt ist, sollten Sie die Nummer 2 zurückgeben.",
-#     "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời. Ví dụ, nếu bạn được đưa ra các lựa chọn 1, 2, 3, 4 và lựa chọn 2 là đúng, thì bạn nên trả về số 2.",
-#     "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले मात्र सही उत्तरको नम्बरले उत्तर दिनुपर्छ। उदाहरणका लागि, यदि तपाईंलाई विकल्पहरू 1, 2, 3, 4 दिइन्छ र विकल्प 2 सही छ भने, तपाईंले नम्बर 2 फिर्ता गर्नुपर्छ।",
-# }
 
 INSTRUCTIONS_COT = {
-    "en": "The following is a multiple-choice question. Think step by step and then provide your final answer between the tags <ANSWER> X </ANSWER> where X is the correct letter choice.",
-    "es": "La siguiente es una pregunta de opción múltiple. Piensa paso a paso y luego proporciona tu respuesta final entre las etiquetas <ANSWER> X </ANSWER>, donde X es la letra correcta.",
-    "hi": "निम्नलिखित एक बहुविकल्पीय प्रश्न है। चरण दर चरण सोचें और फिर अपने अंतिम उत्तर को <ANSWER> X </ANSWER> टैग के बीच प्रदान करें, जहाँ X सही विकल्प का अक्षर है।",
-    "hu": "A következő egy feleletválasztós kérdés. Gondolkodj lépésről lépésre, majd add meg a végső válaszodat a <ANSWER> X </ANSWER> címkék között, ahol X a helyes betű.",
-    "hr": "Sljedeće je pitanje s višestrukim izborom. Razmišljajte korak po korak, a zatim dajte svoj konačni odgovor između oznaka <ANSWER> X </ANSWER> gdje je X ispravno slovo opcije.",
-    "uk": "Нижче наведено питання з множинним вибором. Думайте крок за кроком, а потім надайте свою кінцеву відповідь між тегами <ANSWER> X </ANSWER>, де X — правильна буква.",
-    "pt": "A seguir está uma questão de múltipla escolha. Pense passo a passo e, em seguida, forneça sua resposta final entre as tags <ANSWER> X </ANSWER>, onde X é a letra correta.",
-    "bn": "নিম্নলিখিত একটি বহুনির্বাচনী প্রশ্ন। ধাপে ধাপে চিন্তা করুন এবং তারপর আপনার চূড়ান্ত উত্তর <ANSWER> X </ANSWER> ট্যাগের মধ্যে প্রদান করুন, যেখানে X সঠিক অক্ষর চয়েস।",
-    "te": "కింద ఇచ్చినది ఒక బహుళ ఎంపిక ప్రశ్న. దశల వారీగా ఆలోచించండి మరియు తర్వాత మీ తుది సమాధానాన్ని <ANSWER> X </ANSWER> ట్యాగ్ల మధ్య అందించండి, ఇక్కడ X సరైన అక్షర ఎంపిక.",
-    "ne": "तलको प्रश्न बहुविकल्पीय छ। चरण दर चरण सोच्नुहोस् र त्यसपछि आफ्नो अन्तिम उत्तर <ANSWER> X </ANSWER> ट्यागहरू बीचमा दिनुहोस्, जहाँ X सही अक्षर विकल्प हो।",
-    "sr": "Следеће је питање са више избора. Размишљајте корак по корак, а затим дајте свој коначни одговор између тагова <ANSWER> X </ANSWER>, где је X исправно слово опције.",
-    "nl": "De volgende is een meerkeuzevraag. Denk stap voor stap na en geef vervolgens je definitieve antwoord tussen de tags <ANSWER> X </ANSWER>, waarbij X de juiste letterkeuze is.",
-    "ar": "التالي هو سؤال اختيار من متعدد. فكر خطوة بخطوة ثم قدم إجابتك النهائية بين الوسوم <ANSWER> X </ANSWER>، حيث X هو الحرف الصحيح.",
-    "ru": "Ниже приведён вопрос с множественным выбором. Думайте шаг за шагом, а затем предоставьте ваш окончательный ответ между тегами <ANSWER> X </ANSWER>, где X — правильный буквенный вариант.",
-    "fr": "Ce qui suit est une question à choix multiples. Réfléchissez étape par étape, puis fournissez votre réponse finale entre les balises <ANSWER> X </ANSWER>, où X représente la bonne lettre.",
-    "fa": "موارد زیر یک سوال چندگزینه‌ای است. گام به گام فکر کنید و سپس پاسخ نهایی خود را بین تگ‌های <ANSWER> X </ANSWER> ارائه دهید، جایی که X حرف گزینه صحیح است.",
-    "de": "Die folgende Frage ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre endgültige Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X der richtige Buchstabe ist.",
-    "lt": "Toliau pateikiamas klausimas su keliomis atsakymų galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo galutinį atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra teisinga raidė."
+    "en": "The following is a multiple-choice question. Think step by step and then provide your FINAL answer between the tags <ANSWER> X </ANSWER> where X is ONLY the correct letter of your choice. Do not write additional text between the tags.",
+    "es": "Lo siguiente es una pregunta de opción múltiple. Piensa paso a paso y luego proporciona tu RESPUESTA FINAL entre las etiquetas <ANSWER> X </ANSWER>, donde X es ÚNICAMENTE la letra correcta de tu elección. No escribas texto adicional entre las etiquetas.",
+    "hi": "निम्नलिखित एक बहुविकल्पीय प्रश्न है। चरणबद्ध सोचें और फिर <ANSWER> X </ANSWER> टैग के बीच अपना अंतिम उत्तर प्रदान करें, जहाँ X केवल आपके चयन का सही अक्षर है। टैग के बीच अतिरिक्त कोई पाठ न लिखें।",
+    "hu": "A következő egy feleletválasztós kérdés. Gondolkodj lépésről lépésre, majd add meg a VÉGSŐ válaszodat a <ANSWER> X </ANSWER> címkék között, ahol X CSAK a választott helyes betű. Ne írj további szöveget a címkék közé.",
+    "hr": "Sljedeće je pitanje s višestrukim izborom. Razmislite korak po korak, a zatim dajte svoj ZAVRŠNI odgovor između oznaka <ANSWER> X </ANSWER> gdje je X SAMO ispravno slovo vašeg izbora. Nemojte pisati dodatni tekst između oznaka.",
+    "uk": "Наступне — це питання з множинним вибором. Думайте крок за кроком, а потім надайте вашу ОСТАННЮ відповідь між тегами <ANSWER> X </ANSWER>, де X — ЛИШЕ правильна літера за вашим вибором. Не пишіть додаткового тексту між тегами.",
+    "pt": "A seguir, temos uma questão de múltipla escolha. Pense passo a passo e depois forneça sua RESPOSTA FINAL entre as tags <ANSWER> X </ANSWER>, onde X é SOMENTE a letra correta da sua escolha. Não escreva texto adicional entre as tags.",
+    "bn": "নিম্নলিখিতটি একটি বহু-বিকল্প প্রশ্ন। ধাপে ধাপে চিন্তা করুন এবং তারপর <ANSWER> X </ANSWER> ট্যাগের মধ্যে আপনার চূড়ান্ত উত্তর প্রদান করুন, যেখানে X শুধুমাত্র আপনার পছন্দের সঠিক অক্ষর। ট্যাগগুলির মধ্যে অতিরিক্ত কোনো লেখা লিখবেন না।",
+    "te": "కింద ఇచ్చినది ఒక బహుళ ఎంపిక ప్రశ్న. దశల వారీగా ఆలోచించి, <ANSWER> X </ANSWER> ట్యాగ్లలో మీ తుది సమాధానాన్ని ఇవ్వండి, ఇక్కడ X మీ ఎంపికలోని సరైన అక్షరం మాత్రమే. ట్యాగ్లలో అదనపు వచనం రాయవద్దు.",
+    "ne": "तलको प्रश्न बहुविकल्पीय छ। चरणबद्ध सोच्नुहोस् र त्यसपछि <ANSWER> X </ANSWER> ट्यागहरूबीच आफ्नो अन्तिम उत्तर प्रदान गर्नुहोस्, जहाँ X केवल तपाईंको रोजाइको सही अक्षर हो। ट्यागहरूबीच अतिरिक्त पाठ नलेख्नुहोस्।",
+    "sr": "Sledeće je pitanje sa višestrukim izborom. Razmislite korak po korak, a zatim dajte svoj KONAČNI odgovor između oznaka <ANSWER> X </ANSWER>, gde je X SAMO tačno slovo vašeg izbora. Nemojte pisati dodatni tekst između oznaka.",
+    "nl": "Het volgende is een meerkeuzevraag. Denk stap voor stap na en geef dan je UITEINDLIJKE antwoord tussen de tags <ANSWER> X </ANSWER>, waarbij X ALLEEN de juiste letter van je keuze is. Schrijf geen extra tekst tussen de tags.",
+    "ar": "التالي هو سؤال اختيار من متعدد. فكر خطوة بخطوة ثم قدم إجابتك النهائية بين الوسوم <ANSWER> X </ANSWER> حيث X هي الحرف الصحيح فقط من اختيارك. لا تكتب نصًا إضافيًا بين الوسوم.",
+    "ru": "Следующее — это вопрос с выбором ответа. Думайте шаг за шагом, а затем предоставьте ваш ОКОНЧАТЕЛЬНЫЙ ответ между тегами <ANSWER> X </ANSWER>, где X — ТОЛЬКО правильная буква вашего выбора. Не пишите дополнительный текст между тегами.",
+    "fr": "Ce qui suit est une question à choix multiple. Réfléchissez étape par étape, puis donnez votre RÉPONSE FINALE entre les balises <ANSWER> X </ANSWER>, où X est UNIQUEMENT la lettre correcte de votre choix. N'écrivez pas de texte supplémentaire entre les balises.",
+    "fa": "متن زیر یک سوال چندگزینه‌ای است. مرحله به مرحله فکر کنید و سپس پاسخ نهایی خود را بین تگ‌های <ANSWER> X </ANSWER> قرار دهید، جایی که X تنها حرف صحیح انتخاب شماست. متن اضافی بین تگ‌ها ننویسید.",
+    "de": "Im Folgenden ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre ENDGÜLTIGE Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X NUR der korrekte Buchstabe Ihrer Wahl ist. Schreiben Sie keinen zusätzlichen Text zwischen den Tags.",
+    "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų."
 }
 
 
@@ -741,13 +721,11 @@ def format_answer(answer: str):
     """
     pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
     match = re.search(pattern, answer, re.IGNORECASE)
-    
-    result = {}
-    
+        
     if match:
         # Extract and convert answer letter
         letter = match.group(1).upper()
-        answer = ord(letter) - ord('A')
+        election = ord(letter) - ord('A')
         
         # Extract reasoning by removing answer tag section
         start, end = match.span()
@@ -756,12 +734,12 @@ def format_answer(answer: str):
         reasoning = re.sub(r"\s+", " ", reasoning)
     else:
         # Error handling cases
-        answer = "No valid answer tag found"
+        election = "No valid answer tag found"
         if re.search(r"<ANSWER>.*?</ANSWER>", answer):
-            answer = "Answer tag exists but contains invalid format"
+            election = "Answer tag exists but contains invalid format"
         reasoning = answer.strip()
     
-    return reasoning, answer
+    return reasoning, election
 
 
 def fetch_cot_instruction(lang: str) -> str:
