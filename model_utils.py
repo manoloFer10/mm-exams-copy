@@ -11,16 +11,19 @@ from transformers import (  # pip install git+https://github.com/huggingface/tra
 from qwen_vl_utils import (
     process_vision_info,
 )  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
-from transformers import ( # pip install git+https://github.com/huggingface/transformers accelerate
-                        Qwen2VLForConditionalGeneration,
-                        Qwen2_5_VLForConditionalGeneration,
-                        AutoProcessor,
-                        AutoModelForCausalLM, 
-                        GenerationConfig
-                        )
+from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLForConditionalGeneration,
+    AutoProcessor,
+    AutoModelForCausalLM,
+    GenerationConfig,
+)
+
 # from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl.utils.io import load_pil_images
-from qwen_vl_utils import process_vision_info  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
+from qwen_vl_utils import (
+    process_vision_info,
+)  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
@@ -208,7 +211,8 @@ def query_model(
         "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
-        answer = query_openai(model, model_name, prompt, temperature, max_tokens)
+        return query_openai(model, model_name, prompt, temperature, max_tokens)
+
     elif model_name == "claude-3-5-sonnet-latest":
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
