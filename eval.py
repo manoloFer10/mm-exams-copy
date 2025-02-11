@@ -69,7 +69,7 @@ def run_evaluation(results, style, output_folder):
     if style == 'experiments':
         perform_experiments(results, output_folder)
     if style == 'plotting':
-        perform_plots(output_folder)
+        perform_plots(results, output_folder)
 
 def load_dataset_from_entry(args):
 
