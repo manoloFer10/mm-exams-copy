@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 import os
 import random
 import json
@@ -109,39 +109,52 @@ def evaluate_model(args):
 
     # Evaluate each question
     results = []
-    for question in tqdm(dataset):
-        lang = question["language"]
-        system_message = fetch_cot_instruction(lang)
-        # Generate prompt. Note that only local models will need image_paths separatedly.
+    try:
+        for question in tqdm(dataset):
+            lang = question["language"]
+            system_message = fetch_cot_instruction(lang)
+            # Generate prompt. Note that only local models will need image_paths separatedly.
 
-        prompt, image_paths = generate_prompt(
-            args.model, question, lang, system_message, args.setting
-        )
-        # Query model
-        reasoning, prediction = query_model(
-            args.model,
-            model,
-            processor,
-            prompt,
-            image_paths,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+            prompt, image_paths = generate_prompt(
+                args.model, question, lang, system_message, args.setting
+            )
+            # Query model
+            reasoning, prediction = query_model(
+                args.model,
+                model,
+                processor,
+                prompt,
+                image_paths,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
 
-        question["prediction_by_" + args.model] = prediction
-        question["reasoning_by_" + args.model] = reasoning
-        # question_json['prompt_used'] = prompt
-        result_metadata = question.copy()
-        results.append(result_metadata)
+            question["prediction_by_" + args.model] = prediction
+            question["reasoning_by_" + args.model] = reasoning
+            question['prompt_used'] = prompt
+            result_metadata = question.copy()
+            results.append(result_metadata)
 
-    # Save results to file
-    output_folder = f"outputs/{args.setting}/mode_{args.model}"
-    os.makedirs(output_folder, exist_ok=True)
-    output_path = os.path.join(output_folder, f"results.json")
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2)
+        # Save results to file
+        output_folder = f"outputs/{args.setting}/mode_{args.model}"
+        os.makedirs(output_folder, exist_ok=True)
+        output_path = os.path.join(output_folder, f"results.json")
+        with open(output_path, "w") as f:
+            json.dump(results, f, indent=2)
 
-    print(f"Evaluation completed. Results saved to {output_path}")
+        print(f"Evaluation completed. Results saved to {output_path}")
+    
+    except Exception as e:
+        print(f'Inference stopped unexpectedly: {e}')
+
+        # Save results to file
+        output_folder = f"outputs/{args.setting}/temp_mode_{args.model}"
+        os.makedirs(output_folder, exist_ok=True)
+        output_path = os.path.join(output_folder, f"results.json")
+        with open(output_path, "w") as f:
+            json.dump(results, f, indent=2)
+
+        print(f"Evaluation finished unexpectedly. Temporary results saved to {output_path}")
 
 
 def main():
