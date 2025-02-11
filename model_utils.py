@@ -11,6 +11,18 @@ from transformers import (  # pip install git+https://github.com/huggingface/tra
 from qwen_vl_utils import (
     process_vision_info,
 )  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
+from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLForConditionalGeneration,
+    AutoProcessor,
+    AutoModelForCausalLM,
+    GenerationConfig,
+)
+from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+from deepseek_vl.utils.io import load_pil_images
+from qwen_vl_utils import (
+    process_vision_info,
+)  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
@@ -27,6 +39,7 @@ SUPPORTED_MODELS = [
     "gemini-1.5-pro",
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
+    "molmo",
 ]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
@@ -109,25 +122,18 @@ def initialize_model(
             local_files_only=True,
         )
 
-    elif model_name == "pangea":
-        # Add Pangea initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
-
-        client = OpenAI(api_key=api_key)
-        model = client
-        processor = None
-    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    elif model_name == "deepseekVL2-16B":
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            temperature=TEMPERATURE,
+            device_map=device,
+            torch_dtype=torch.bfloat16,
+            local_files_only=True,
         )
-        model = client
-        processor = None
-    elif model_name == "claude-3-5-sonnet-latest":
-        client = Anthropic(api_key=api_key)
-        model = client
-        processor = None
+        processor = AutoProcessor.from_pretrained(
+            Path(model_path) / "processor",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            local_files_only=True,
+        )
 
     elif model_name == "molmo":
 
@@ -146,6 +152,27 @@ def initialize_model(
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         )
+    elif model_name == "pangea":
+        # Add Pangea initialization logic
+        raise NotImplementedError(f"Model: {model_name} not available yet")
+    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+
+        client = OpenAI(api_key=api_key)
+        model = client
+        processor = None
+    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+        model = client
+        processor = None
+
+    elif model_name == "claude-3-5-sonnet-latest":
+        client = Anthropic(api_key=api_key)
+        model = client
+        processor = None
+
     else:
         raise NotImplementedError(
             f"Model {model_name} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
@@ -756,6 +783,9 @@ def format_answer(answer: str):
 
 
 def fetch_cot_instruction(lang: str) -> str:
+    """
+    Retrieves the CoT Instruction for the given lang.
+    """
     if lang in INSTRUCTIONS_COT.keys():
         return INSTRUCTIONS_COT[lang]
     else:

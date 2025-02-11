@@ -148,7 +148,6 @@ def main():
     args = parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-    # add torch seed
     evaluate_model(args)
 
 
