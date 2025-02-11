@@ -117,7 +117,7 @@ def initialize_model(
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
-    elif model_name == "gemini-2.0-flash-exp":
+    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
         client = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -148,7 +148,7 @@ def initialize_model(
         )
     else:
         raise NotImplementedError(
-            f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
+            f"Model {model_name} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
     return model, processor
 
@@ -177,7 +177,12 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
+    elif model_name in [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+    ]:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "claude-3-5-sonnet-latest":
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -346,7 +351,12 @@ def generate_prompt(
             instruction,
             few_shot_setting,
         )
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
+    elif model_name in [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+    ]:
         return parse_openai_input(
             question["question"],
             question["image"],
