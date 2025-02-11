@@ -18,8 +18,8 @@ from transformers import ( # pip install git+https://github.com/huggingface/tran
                         AutoModelForCausalLM, 
                         GenerationConfig
                         )
-from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-from deepseek_vl.utils.io import load_pil_images
+# from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+# from deepseek_vl.utils.io import load_pil_images
 from qwen_vl_utils import process_vision_info  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
@@ -202,7 +202,7 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "claude-3-5-sonnet-latest":
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -371,7 +371,7 @@ def generate_prompt(
             instruction,
             few_shot_setting,
         )
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash-exp"]:
+    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]:
         return parse_openai_input(
             question["question"],
             question["image"],
@@ -399,7 +399,7 @@ def generate_prompt(
             few_shot_setting,
         )
     else:
-        raise ValueError(f"Unsupported model: {model_name}")
+        raise ValueError(f"Unsupported model for parsing inputs: {model_name}")
 
 
 def parse_openai_input(
