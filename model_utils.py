@@ -565,12 +565,6 @@ def parse_anthropic_input(
     return messages, None  # image paths not expected for openai client.
 
 
-def parse_qwen_input(
-    question_text, question_image, options_list, lang, system_message, few_shot_setting
-):
-    return messages, None  # image paths not expected for anthropic client.
-
-
 def parse_molmo_inputs(
     question_text, question_image, options_list, lang, instruction, few_shot_setting
 ):
