@@ -211,7 +211,7 @@ def query_model(
         "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
-        return query_openai(model, model_name, prompt, temperature, max_tokens)
+        answer = query_openai(model, model_name, prompt, temperature, max_tokens)
 
     elif model_name == "claude-3-5-sonnet-latest":
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -268,7 +268,7 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
         max_tokens=max_tokens,
     )
     output_text = response.choices[0].message.content.strip()
-    return format_answer(output_text)
+    return output_text
 
 
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
@@ -361,7 +361,7 @@ def query_qwen25(model, processor, prompt: list, device="cuda", max_tokens=MAX_T
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
     )
     torch.cuda.empty_cache()
-    return format_answer(response[0])
+    return response[0]
 
 
 def generate_prompt(
