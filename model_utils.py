@@ -30,13 +30,15 @@ from torch.cuda.amp import autocast
 TEMPERATURE = 0.7
 MAX_TOKENS = 256
 
-SUPPORTED_MODELS = ["gpt-4o", 
-                    "qwen2-7b", 
-                    "qwen2.5-7b", 
-                    "gemini-1.5-pro", 
-                    "gemini-1.5-flash", 
-                    "claude-3-5-sonnet-latest",
-                    "molmo"] # "claude-3-5-haiku-latest" haiku does not support image input
+SUPPORTED_MODELS = [
+    "gpt-4o",
+    "qwen2-7b",
+    "qwen2.5-7b",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    "claude-3-5-sonnet-latest",
+    "molmo",
+]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
 INSTRUCTIONS_COT = {
@@ -105,7 +107,7 @@ def initialize_model(
         )
         print(f"Model loaded from {model_path}")
 
-    elif model_name =="qwen2.5-7b":
+    elif model_name == "qwen2.5-7b":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
             temperature=TEMPERATURE,
@@ -114,39 +116,39 @@ def initialize_model(
             local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
-            local_files_only=True
+            Path(model_path) / "processor",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            local_files_only=True,
         )
-    
-    elif model_name =="deepseekVL2-16B":
+
+    elif model_name == "deepseekVL2-16B":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model", #"Qwen/Qwen2.5-VL-7B-Instruct" 
+            Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
-            local_files_only=True
+            local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", #"Qwen/Qwen2.5-VL-7B-Instruct"
-            local_files_only=True
+            Path(model_path) / "processor",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            local_files_only=True,
         )
 
-    elif model_name == 'molmo':
+    elif model_name == "molmo":
 
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", # 'allenai/Molmo-7B-D-0924',
+            Path(model_path) / "processor",  # 'allenai/Molmo-7B-D-0924',
             trust_remote_code=True,
-            torch_dtype='auto',
-            device_map='auto',
-            local_files_only=True
+            torch_dtype="auto",
+            device_map="auto",
+            local_files_only=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "model", #'allenai/Molmo-7B-D-0924',
+            Path(model_path) / "model",  #'allenai/Molmo-7B-D-0924',
             trust_remote_code=True,
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
-            local_files_only=True
+            local_files_only=True,
         )
     elif model_name == "pangea":
         # Add Pangea initialization logic
@@ -156,24 +158,22 @@ def initialize_model(
         client = OpenAI(api_key=api_key)
         model = client
         processor = None
-
-    elif model_name in ['gemini-1.5-pro', "gemini-1.5-flash"]:
-
+    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
         client = OpenAI(
             api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
         model = client
         processor = None
 
-    elif model_name == 'claude-3-5-sonnet-latest':
+    elif model_name == "claude-3-5-sonnet-latest":
         client = Anthropic(api_key=api_key)
         model = client
         processor = None
 
     else:
         raise NotImplementedError(
-            f"Model {model} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
+            f"Model {model_name} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
     return model, processor
 
@@ -202,7 +202,12 @@ def query_model(
     elif model_name == "molmo":
         # Add molmo querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]:
+    elif model_name in [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+    ]:
         return query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "claude-3-5-sonnet-latest":
         return query_anthropic(model, model_name, prompt, temperature, max_tokens)
@@ -371,7 +376,12 @@ def generate_prompt(
             instruction,
             few_shot_setting,
         )
-    elif model_name in ["gpt-4o", "gpt-4o-mini", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"]:
+    elif model_name in [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+    ]:
         return parse_openai_input(
             question["question"],
             question["image"],

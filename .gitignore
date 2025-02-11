@@ -15,3 +15,5 @@ data/
 tokens_mm_exams.json
 tests/
 image_data/
+Qwen2.5-VL-7B/
+LlaVA-NeXT/
