@@ -63,6 +63,12 @@ def parse_args():
         default=None,
         help="Path to the model checkpoint or name",
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Pass the file of aswers from where to resume",
+    )
     args = parser.parse_args()
     return args
 
@@ -96,9 +102,15 @@ def evaluate_model(args):
     Run the evaluation pipeline for the specified model.
     """
     # Set path
-    output_folder = f"outputs/{args.setting}/mode_{args.model}"
-    os.makedirs(output_folder, exist_ok=True)
-    output_path = os.path.join(output_folder, f"results.json")
+    if args.resume:
+        output_path = args.resume
+        with open(output_path, "r") as f:
+            results = json.load(f)
+            continue_from = len(results)
+    else:
+        output_folder = f"outputs/{args.setting}/mode_{args.model}"
+        os.makedirs(output_folder, exist_ok=True)
+        output_path = os.path.join(output_folder, f"results.json")
 
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
@@ -115,6 +127,8 @@ def evaluate_model(args):
     # Evaluate each question
     results = []
     for t, question in tqdm(enumerate(dataset), total=len(dataset)):
+        if t < continue_from:
+            continue
         lang = question["language"]
         system_message = fetch_cot_instruction(lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
