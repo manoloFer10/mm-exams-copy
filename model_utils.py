@@ -208,9 +208,9 @@ def query_model(
         "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
-        return query_openai(model, model_name, prompt, temperature, max_tokens)
+        answer = query_openai(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "claude-3-5-sonnet-latest":
-        return query_anthropic(model, model_name, prompt, temperature, max_tokens)
+        answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
