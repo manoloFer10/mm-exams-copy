@@ -114,7 +114,7 @@ def evaluate_model(args):
 
     # Evaluate each question
     results = []
-    for t, question in tqdm(enumerate(dataset)):
+    for t, question in tqdm(enumerate(dataset), total=len(dataset)):
         lang = question["language"]
         system_message = fetch_cot_instruction(lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
@@ -142,6 +142,7 @@ def evaluate_model(args):
         if t % 2 == 0:  # saving files backup
             with open(output_path, "w") as f:
                 json.dump(results, f, indent=2)
+            print(f"Ongoing {t} results saved to {output_path}")
 
     # Save results to file
     with open(output_path, "w") as f:
