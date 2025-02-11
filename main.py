@@ -139,7 +139,7 @@ def evaluate_model(args):
         result_metadata = question.copy()
         results.append(result_metadata)
 
-        if t % 2 == 0:  # saving files backup
+        if (t + 1) % 100 == 0 or (t + 1) == len(dataset):
             with open(output_path, "w") as f:
                 json.dump(results, f, indent=2)
             print(f"Ongoing {t} results saved to {output_path}")
