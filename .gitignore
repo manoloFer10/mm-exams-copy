@@ -17,3 +17,4 @@ tests/
 image_data/
 Qwen2.5-VL-7B/
 LlaVA-NeXT/
+*.json

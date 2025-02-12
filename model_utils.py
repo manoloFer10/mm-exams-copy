@@ -2,16 +2,16 @@ import base64
 import torch
 import re
 from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
+    # Qwen2VLForConditionalGeneration,
+    # Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
 )
 from qwen_vl_utils import (
     process_vision_info,
-) 
-from transformers import (  
+)
+from transformers import (
     Qwen2VLForConditionalGeneration,
     Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
@@ -42,7 +42,7 @@ SUPPORTED_MODELS = [
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
     "molmo",
-    'deepseekVL2-small'
+    "deepseekVL2-small",
 ]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
@@ -66,6 +66,7 @@ INSTRUCTIONS_COT = {
     "de": "Im Folgenden ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre ENDGÜLTIGE Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X NUR der korrekte Buchstabe Ihrer Wahl ist. Schreiben Sie keinen zusätzlichen Text zwischen den Tags.",
     "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų.",
 }
+
 
 def initialize_model(
     model_name: str, model_path: str, api_key: str = None, device: str = "cuda"
@@ -104,15 +105,14 @@ def initialize_model(
     elif model_name == "deepseekVL2-small":
         model_path = "deepseek-ai/deepseek-vl2-small"
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            Path(model_path) / "model",
-            local_files_only=True
+            Path(model_path) / "model", local_files_only=True
         )
 
         model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
             Path(model_path) / "processor",
             trust_remote_code=True,
             temperature=0.7,
-            device_map='auto',
+            device_map="auto",
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         ).eval()
@@ -249,13 +249,7 @@ def query_deepseek(
     return answer
 
 
-def query_molmo(
-    model,
-    processor,
-    prompt: list,
-    image_path: list,
-    max_tokens
-):
+def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
     if prompt == "multi-image":
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
@@ -436,7 +430,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             instruction,
-            few_shot_setting
+            few_shot_setting,
         )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
@@ -653,14 +647,14 @@ def parse_molmo_inputs(
     for option in options_list:
         if ".png" in option:
             return "multi-image", None
-        
-    if instruction != '':
-      prompt = instruction + "\n\n"
+
+    if instruction != "":
+        prompt = instruction + "\n\n"
 
     prompt = "Question: " + question_text + "\n\n"
 
     if question_image:
-      prompt += '<image>'
+        prompt += "<image>"
 
     options = "Options:\n"
     for i, option in enumerate(options_list):
