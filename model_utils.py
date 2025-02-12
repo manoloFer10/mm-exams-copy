@@ -10,17 +10,18 @@ from transformers import (  # pip install git+https://github.com/huggingface/tra
 )
 from qwen_vl_utils import (
     process_vision_info,
-)  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
-from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    # Qwen2VLForConditionalGeneration,
-    # Qwen2_5_VLForConditionalGeneration,
+)
+from transformers import (
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
 )
 
-# from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-# from deepseek_vl.utils.io import load_pil_images
+from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+from deepseek_vl.utils.io import load_pil_images
+
 from qwen_vl_utils import (
     process_vision_info,
 )  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
@@ -41,6 +42,7 @@ SUPPORTED_MODELS = [
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
     "molmo",
+    "deepseekVL2-small",
 ]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
@@ -63,28 +65,6 @@ INSTRUCTIONS_COT = {
     "fa": "متن زیر یک سوال چندگزینه‌ای است. مرحله به مرحله فکر کنید و سپس پاسخ نهایی خود را بین تگ‌های <ANSWER> X </ANSWER> قرار دهید، جایی که X تنها حرف صحیح انتخاب شماست. متن اضافی بین تگ‌ها ننویسید.",
     "de": "Im Folgenden ist eine Multiple-Choice-Frage. Denken Sie Schritt für Schritt nach und geben Sie dann Ihre ENDGÜLTIGE Antwort zwischen den Tags <ANSWER> X </ANSWER> an, wobei X NUR der korrekte Buchstabe Ihrer Wahl ist. Schreiben Sie keinen zusätzlichen Text zwischen den Tags.",
     "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų.",
-}
-
-
-# Deprecated
-SYSTEM_MESSAGES = {
-    "en": "You are given a multiple-choice question to answer. You MUST respond only with the number corresponding to the correct answer, without any additional text or explanation.",
-    "fa": "شما یک سوال چند گزینه‌ای برای پاسخ دادن دریافت می‌کنید. شما باید فقط با شماره صحیح پاسخ دهید و هیچ توضیح اضافی ارائه ندهید.",
-    "es": "Se te da una pregunta de opción múltiple para responder. DEBES responder solo con el número correspondiente a la respuesta correcta, sin ningún texto o explicación adicional.",
-    "bn": "আপনাকে একটি একাধিক পছন্দ প্রশ্ন দেওয়া হয়েছে উত্তর দেওয়ার জন্য। আপনাকে শুধুমাত্র সঠিক উত্তরের সংখ্যা দিয়ে উত্তর দিতে হবে, কোনো অতিরিক্ত টেক্সট বা ব্যাখ্যা ছাড়া।",
-    "hi": "आपको उत्तर देने के लिए एक बहुविकल्पीय प्रश्न दिया गया है। आपको केवल सही उत्तर के नंबर से उत्तर देना चाहिए, बिना किसी अतिरिक्त पाठ या व्याख्या के।",
-    "lt": "Jums pateiktas klausimas su keliais pasirinkimais atsakyti. TURITE atsakyti tik teisingu atsakymo numeriu, be jokio papildomo teksto ar paaiškinimų.",
-    "zh": "您被给出一个多项选择题来回答。您必须仅用正确的答案编号作答，不添加任何额外的文本或解释。",
-    "nl": "Je krijgt een meerkeuzevraag om te beantwoorden. Je MOET alleen antwoorden met het juiste nummer van het antwoord, zonder enige extra tekst of uitleg.",
-    "te": "మీకు ఒక బహుళ ఎంపిక ప్రశ్న ఇస్తారు. మీరు తప్పనిసరిగా సరైన సమాధానం సంఖ్యతో మాత్రమే సమాధానం ఇవ్వాలి, అదనపు పాఠ్యం లేదా వివరణ లేకుండా.",
-    "uk": "Вам надано питання з кількома варіантами відповідей. ВИ МАЄТЕ відповідати лише номером правильної відповіді, без додаткового тексту чи пояснень.",
-    "pa": "ਤੁਹਾਨੂੰ ਉੱਤਰ ਦੇਣ ਲਈ ਇੱਕ ਬਹੁ-ਚੋਣ ਪ੍ਰਸ਼ਨ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਸਹੀ ਜਵਾਬ ਦੀ ਗਿਣਤੀ ਨਾਲ ਜਵਾਬ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ, ਬਿਨਾਂ ਕਿਸੇ ਵਾਧੂ ਪਾਠ ਜਾਂ ਵਿਆਖਿਆ ਦੇ।",
-    "sk": "Máte zadanú otázku s viacerými možnosťami odpovede. MUSÍTE odpovedať iba číslom správnej odpovede, bez akéhokoľvek ďalšieho textu alebo vysvetlenia.",
-    "pl": "Otrzymujesz pytanie wielokrotnego wyboru do odpowiedzi. MUSISZ odpowiedzieć tylko numerem poprawnej odpowiedzi, bez żadnego dodatkowego tekstu ani wyjaśnień.",
-    "cs": "Dostanete otázku s výběrem odpovědí. MUSÍTE odpovědět pouze číslem správné odpovědi, bez jakéhokoliv dalšího textu nebo vysvětlení.",
-    "de": "Ihnen wird eine Multiple-Choice-Frage zur Beantwortung gegeben. Sie DÜRFEN nur mit der richtigen Nummer der Antwort antworten, ohne zusätzlichen Text oder Erklärungen.",
-    "vi": "Bạn được cung cấp một câu hỏi trắc nghiệm để trả lời. Bạn PHẢI chỉ trả lời bằng số đúng của câu trả lời, không thêm bất kỳ văn bản hoặc giải thích nào.",
-    "ne": "तपाईंलाई उत्तर दिनको लागि एक बहुविकल्पीय प्रश्न दिइएको छ। तपाईंले केवल सही उत्तरको नम्बरले मात्र उत्तर दिनुपर्छ, कुनै अतिरिक्त पाठ वा व्याख्या बिना।",
 }
 
 
@@ -123,18 +103,20 @@ def initialize_model(
             local_files_only=True,
         )
 
-    elif model_name == "deepseekVL2-16B":
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
-            temperature=TEMPERATURE,
-            device_map=device,
+    elif model_name == "deepseekVL2-small":
+        model_path = "deepseek-ai/deepseek-vl2-small"
+        processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
+            Path(model_path) / "model", local_files_only=True
+        )
+
+        model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
+            Path(model_path) / "processor",
+            trust_remote_code=True,
+            temperature=0.7,
+            device_map="auto",
             torch_dtype=torch.bfloat16,
             local_files_only=True,
-        )
-        processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor",  # "Qwen/Qwen2.5-VL-7B-Instruct"
-            local_files_only=True,
-        )
+        ).eval()
 
     elif model_name == "molmo":
 
@@ -198,13 +180,12 @@ def query_model(
         answer = query_qwen2(model, processor, prompt, images, device)
 
     elif model_name == "qwen2.5-7b":
-        answer = query_qwen25(model, processor, prompt, device)
+        answer = query_qwen25(model, processor, prompt, device, max_tokens)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     elif model_name == "molmo":
-        # Add molmo querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
+        answer = query_molmo(model, processor, prompt, images, max_tokens)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -228,12 +209,7 @@ def query_pangea():
     pass
 
 
-def query_molmo(
-    model,
-    processor,
-    prompt: list,
-    image_path: list,
-):
+def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
     if prompt == "multi-image":
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
@@ -247,7 +223,7 @@ def query_molmo(
         # generate output; maximum 200 new tokens; stop generation when <|endoftext|> is generated
         output = model.generate_from_batch(
             inputs,
-            GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
+            GenerationConfig(max_new_tokens=max_tokens, stop_strings="<|endoftext|>"),
             tokenizer=processor.tokenizer,
         )
 
@@ -401,8 +377,13 @@ def generate_prompt(
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "molmo":
-        # Add molmo querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
+        return parse_molmo_inputs(
+            question["question"],
+            question["image"],
+            question["options"],
+            instruction,
+            few_shot_setting,
+        )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],
@@ -580,20 +561,26 @@ def parse_anthropic_input(
 
 
 def parse_molmo_inputs(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
+    question_text, question_image, options_list, instruction, few_shot_setting
 ):
     for option in options_list:
         if ".png" in option:
             return "multi-image", None
 
-    prompt = instruction + "\n\n"
-    question = "Question: " + question_text + "\n\n"
+    if instruction != "":
+        prompt = instruction + "\n\n"
+
+    prompt = "Question: " + question_text + "\n\n"
+
+    if question_image:
+        prompt += "<image>"
 
     options = "Options:\n"
     for i, option in enumerate(options_list):
         options += chr(65 + i) + ". " + option + "\n"
 
-    prompt += question + options + "\nAnswer:"
+    prompt += options + "\nAnswer:"
+
     return prompt, question_image
 
 
