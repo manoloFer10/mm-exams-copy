@@ -14,3 +14,4 @@ data/
 *.pkl
 tokens_mm_exams.json
 tests/
+image_data/
