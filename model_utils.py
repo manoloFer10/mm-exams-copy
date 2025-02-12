@@ -2,8 +2,8 @@ import base64
 import torch
 import re
 from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
+    # Qwen2VLForConditionalGeneration,
+    # Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
@@ -12,8 +12,8 @@ from qwen_vl_utils import (
     process_vision_info,
 )  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
+    # Qwen2VLForConditionalGeneration,
+    # Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,

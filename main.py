@@ -111,6 +111,7 @@ def evaluate_model(args):
         output_folder = f"outputs/{args.setting}/mode_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
+        continue_from = 0
 
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)

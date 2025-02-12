@@ -15,5 +15,5 @@ export PYTHONPATH=$(pwd)
 
 python main.py \
 --model gemini-1.5-pro \
---dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---api_key \
+--dataset ./dataset/stratified_dataset.hf/ \
+--api_key AIzaSyC6OPNtF2JkTkMWjhmz7i3O5Kou3KHidVE
