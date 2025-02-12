@@ -87,7 +87,6 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(
             Path(model_path) / "processor", local_files_only=True
         )
-        print(f"Model loaded from {model_path}")
 
     elif model_name == "qwen2.5-7b":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -117,7 +116,6 @@ def initialize_model(
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         ).eval()
-
 
     elif model_name == "molmo":
 
@@ -161,6 +159,9 @@ def initialize_model(
         raise NotImplementedError(
             f"Model {model_name} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
+    
+    print(f"Model {model_name} loaded from {model_path}")
+
     return model, processor
 
 
@@ -185,6 +186,8 @@ def query_model(
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
+    elif model_name == 'deepseekVL2-small':
+        answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
         answer = query_molmo(model, processor, prompt, images, max_tokens)
     elif model_name in [
@@ -208,6 +211,42 @@ def query_model(
 
 def query_pangea():
     pass
+
+def query_deepseek(
+    model,
+    processor,
+    prompt: list,
+    max_tokens=MAX_TOKENS
+):
+    instruction = prompt[0]
+    conversation = prompt[1]
+
+    tokenizer = model.tokenizer
+    pil_images = load_pil_images(prompt)
+    prepare_inputs = processor(
+        conversations=conversation,
+        images=pil_images,
+        force_batchify=True,
+        system_prompt=instruction
+    ).to(model.device)
+
+    # run image encoder to get the image embeddings
+    inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
+
+    # run the model to get the response
+    outputs = model.language.generate(
+        inputs_embeds=inputs_embeds,
+        attention_mask=prepare_inputs.attention_mask,
+        pad_token_id=tokenizer.eos_token_id,
+        bos_token_id=tokenizer.bos_token_id,
+        eos_token_id=tokenizer.eos_token_id,
+        max_new_tokens=max_tokens,
+        do_sample=False,
+        use_cache=True
+    )
+
+    answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=False)
+    return answer
 
 
 def query_molmo(
@@ -383,6 +422,14 @@ def generate_prompt(
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
+    elif model_name == 'deepseekVL2-small':
+        return parse_deepseek_inputs(
+            question["question"],
+            question["image"],
+            question["options"],
+            instruction,
+            few_shot_setting
+        )
     elif model_name == "molmo":
         return parse_molmo_inputs(
             question["question"],
@@ -565,6 +612,39 @@ def parse_anthropic_input(
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     return messages, None  # image paths not expected for openai client.
+
+def parse_deepseek_inputs(
+        question_text, question_image, options_list, instruction, few_shot_setting
+):  
+    images = [question_image]
+    for option in options_list:
+        if ".png" in option:
+            images.append(option)
+
+    user_msg = "Question: " + question_text + "\n\n"
+
+    if question_image:
+      user_msg += '<image>'
+
+    options = "Options:\n"
+    for i, option in enumerate(options_list):
+        if ".png" in option:
+            options += chr(65 + i) + ". " + "<image>" + "\n"
+        else:
+            options += chr(65 + i) + ". " + option + "\n"
+
+    user_msg += options + "\nAnswer:"
+
+    conversation = [
+        {
+            "role": "<|User|>",
+            "content": user_msg,
+            "images": images,
+        },
+        {"role": "<|Assistant|>", "content": ""},
+    ]
+
+    return [instruction, conversation], None # image paths not expected for deepseek. Processing of images is within prompt.
 
 
 def parse_molmo_inputs(
