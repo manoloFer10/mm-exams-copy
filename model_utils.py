@@ -130,6 +130,7 @@ def initialize_model(
             model_path,
             trust_remote_code=True,
             temperature=TEMPERATURE,
+            do_sample=True,
             device_map=device,
             local_files_only=True,
         ).eval()
@@ -249,7 +250,8 @@ def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
         return "multi-image detected"
     else:
         inputs = processor.process(
-            images=[Image.open(image_path).convert("RGB")], text=prompt
+            images=[Image.open(image_path).convert("RGB").resize((224, 224))],
+            text=prompt,
         )
         # move inputs to the correct device and make a batch of size 1
         inputs = {k: v.to(model.device).unsqueeze(0) for k, v in inputs.items()}
