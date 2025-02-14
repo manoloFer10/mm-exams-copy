@@ -19,3 +19,4 @@ Qwen2.5-VL-7B/
 LlaVA-NeXT/
 *.json
 batch_*
+models/

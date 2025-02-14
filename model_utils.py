@@ -31,6 +31,7 @@ from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
+from llava.model.builder import load_pretrained_model
 
 TEMPERATURE = 0.7
 MAX_TOKENS = 512
@@ -119,48 +120,46 @@ def initialize_model(
         ).eval()
 
     elif model_name == "molmo":
-
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor",  # 'allenai/Molmo-7B-D-0924',
+            model_path,
             trust_remote_code=True,
             torch_dtype="auto",
             device_map="auto",
             local_files_only=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "model",  #'allenai/Molmo-7B-D-0924',
+            model_path,
             trust_remote_code=True,
             temperature=TEMPERATURE,
+            do_sample=True,
             device_map=device,
-            torch_dtype=torch.bfloat16,
             local_files_only=True,
-        )
-    elif model_name == "pangea":
-        # Add Pangea initialization logic
-        raise NotImplementedError(f"Model: {model_name} not available yet")
-    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+        ).eval()
 
-        client = OpenAI(api_key=api_key)
-        model = client
+    elif model_name == "pangea":
+        model_name = "Pangea-7B-qwen"
+        args = {"multimodal": True}
+        tokenizer, model, image_processor, _ = load_pretrained_model(
+            model_path, None, model_name, **args
+        )
+        processor = {"tokenizer": tokenizer, "image_processor": processor}
+    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+        model = OpenAI(api_key=api_key)
         processor = None
     elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
-        client = OpenAI(
+        model = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
-        model = client
         processor = None
-
     elif model_name == "claude-3-5-sonnet-latest":
-        client = Anthropic(api_key=api_key)
-        model = client
+        model = Anthropic(api_key=api_key)
         processor = None
-
     else:
         raise NotImplementedError(
             f"Model {model_name} not currently implemented for prediction. Supported Models: {SUPPORTED_MODELS}"
         )
-    
+
     print(f"Model {model_name} loaded from {model_path}")
 
     return model, processor
@@ -187,7 +186,7 @@ def query_model(
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name == 'deepseekVL2-small':
+    elif model_name == "deepseekVL2-small":
         answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
         answer = query_molmo(model, processor, prompt, images, max_tokens)
@@ -213,12 +212,8 @@ def query_model(
 def query_pangea():
     pass
 
-def query_deepseek(
-    model,
-    processor,
-    prompt: list,
-    max_tokens=MAX_TOKENS
-):
+
+def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
     instruction = prompt[0]
     conversation = prompt[1]
 
@@ -228,7 +223,7 @@ def query_deepseek(
         conversations=conversation,
         images=pil_images,
         force_batchify=True,
-        system_prompt=instruction
+        system_prompt=instruction,
     ).to(model.device)
 
     # run image encoder to get the image embeddings
@@ -243,7 +238,7 @@ def query_deepseek(
         eos_token_id=tokenizer.eos_token_id,
         max_new_tokens=max_tokens,
         do_sample=False,
-        use_cache=True
+        use_cache=True,
     )
 
     answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=False)
@@ -256,7 +251,8 @@ def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
         return "multi-image detected"
     else:
         inputs = processor.process(
-            images=[Image.open(image_path).convert("RGB")], text=prompt
+            images=[Image.open(image_path).convert("RGB").resize((224, 224))],
+            text=prompt,
         )
         # move inputs to the correct device and make a batch of size 1
         inputs = {k: v.to(model.device).unsqueeze(0) for k, v in inputs.items()}
@@ -415,15 +411,21 @@ def generate_prompt(
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "pangea":
-        # Add pangea querying logic
+        return parse_pangea_inputs(
+            question["question"],
+            question["image"],
+            question["options"],
+            instruction,
+            few_shot_setting,
+        )
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == 'deepseekVL2-small':
+    elif model_name == "deepseekVL2-small":
         return parse_deepseek_inputs(
             question["question"],
             question["image"],
             question["options"],
             instruction,
-            few_shot_setting
+            few_shot_setting,
         )
     elif model_name == "molmo":
         return parse_molmo_inputs(
@@ -619,9 +621,10 @@ def parse_anthropic_input(
 
     return messages, None  # image paths not expected for openai client.
 
+
 def parse_deepseek_inputs(
-        question_text, question_image, options_list, instruction, few_shot_setting
-):  
+    question_text, question_image, options_list, instruction, few_shot_setting
+):
     images = [question_image]
     for option in options_list:
         if ".png" in option:
@@ -630,7 +633,7 @@ def parse_deepseek_inputs(
     user_msg = "Question: " + question_text + "\n\n"
 
     if question_image:
-      user_msg += '<image>'
+        user_msg += "<image>"
 
     options = "Options:\n"
     for i, option in enumerate(options_list):
@@ -650,7 +653,10 @@ def parse_deepseek_inputs(
         {"role": "<|Assistant|>", "content": ""},
     ]
 
-    return [instruction, conversation], None # image paths not expected for deepseek. Processing of images is within prompt.
+    return [
+        instruction,
+        conversation,
+    ], None  # image paths not expected for deepseek. Processing of images is within prompt.
 
 
 def parse_molmo_inputs(
@@ -858,6 +864,10 @@ def format_answer(answer: str):
         reasoning = answer.strip()
 
     return reasoning, election
+
+
+def parse_pangea_inputs(question):
+    return messages, image_paths
 
 
 def fetch_cot_instruction(lang: str) -> str:
