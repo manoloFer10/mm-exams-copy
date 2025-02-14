@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import random
 from tqdm import tqdm
 import pickle
+from PIL import Image
 
 
 def main():
@@ -39,6 +40,17 @@ def main():
 
     # filtering images in options
     dataset = dataset.filter(lambda example: ".png" not in example["options"][0])
+
+    # filter questions where the image is missing
+    def check_img(sample):
+        if sample["image"] is not None:
+            try:
+                img = Image.open(sample["image"])
+                return True
+            except:
+                return False
+
+    dataset = dataset.filter(check_img)
 
     # Define category mappings
     normalized_category_mapping = {

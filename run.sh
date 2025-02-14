@@ -14,9 +14,7 @@
 export PYTHONPATH=$(pwd)
 
 python main.py \
---model gemini-1.5-pro \
---num_samples 1 \
---dataset ./dataset/stratified_dataset.hf/
-#--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/qwen2-vl-7b-instruct/ \
-#--selected_langs ['slovak'] \
-#--api_key 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 \
+--model molmo \
+--num_samples \
+--dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924/
