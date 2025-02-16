@@ -170,11 +170,14 @@ def query_model(
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
+    if model_name in [
+        "qwen2-7b",
+        "qwen2.5-7b",
+    ]:  # ERASE: should erase after 2.5 works well
         answer = query_qwen2(model, processor, prompt, images, device)
 
-    elif model_name == "qwen2.5-7b":
-        answer = query_qwen25(model, processor, prompt, device, max_tokens)
+    # elif model_name == "qwen2.5-7b":
+    #    answer = query_qwen25(model, processor, prompt, device, max_tokens)
     elif model_name == "pangea":
         # Add pangea querying logic
         raise NotImplementedError(f"Model {model_name} not implemented for querying.")
@@ -365,17 +368,17 @@ def generate_prompt(
     instruction,
     method: str = "zero-shot",
 ):
-    if model_name == "qwen2-7b":
+    if model_name in ["qwen2-7b", "qwen2.5-7b"]:
         return create_qwen2_prompt(question, method)
-    if model_name == "qwen2.5-7b":
-        return parse_qwen25_input(
-            question["question"],
-            question["image"],
-            question["options"],
-            lang,
-            instruction,
-            method,
-        )
+    # if model_name == "qwen2.5-7b":
+    #     return parse_qwen25_input(
+    #         question["question"],
+    #         question["image"],
+    #         question["options"],
+    #         lang,
+    #         instruction,
+    #         method,
+    #     )
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -740,7 +743,7 @@ def parse_qwen25_input(
     return messages, None  # image paths processed in messages by process_vision_info.
 
 
-# ERASE: should erase after 2.5 works well
+# Deprecated
 def parse_qwen2_input(
     question_text, question_image, options_list, lang, instruction, few_shot_setting
 ):
