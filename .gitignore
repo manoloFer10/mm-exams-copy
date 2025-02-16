@@ -14,9 +14,9 @@ data/
 *.pkl
 tokens_mm_exams.json
 tests/
-image_data/
 Qwen2.5-VL-7B/
 LlaVA-NeXT/
 *.json
 batch_*
 models/
+image_data/
