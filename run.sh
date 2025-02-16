@@ -14,6 +14,6 @@
 export PYTHONPATH=$(pwd)
 
 python main.py \
---model molmo \
+--model pangea \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Pangea-7B-hf

@@ -25,7 +25,7 @@ from torch.cuda.amp import autocast
 
 # from llava.model.builder import load_pretrained_model
 
-from model_zoo import create_qwen_prompt, create_molmo_prompt
+from model_zoo import create_qwen_prompt, create_molmo_prompt, create_pangea_prompt
 
 
 TEMPERATURE = 0.7
@@ -131,12 +131,13 @@ def initialize_model(
         ).eval()
 
     elif model_name == "pangea":
-        model_name = "Pangea-7B-qwen"
-        args = {"multimodal": True}
-        tokenizer, model, image_processor, _ = load_pretrained_model(
-            model_path, None, model_name, **args
-        )
-        processor = {"tokenizer": tokenizer, "image_processor": processor}
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            local_files_only=True,
+        ).to(device)
+        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
+        model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         model = OpenAI(api_key=api_key)
         processor = None
@@ -372,6 +373,10 @@ def generate_prompt(
 ):
     if model_name in ["qwen2-7b", "qwen2.5-7b"]:
         return create_qwen_prompt(question, method)
+    elif model_name == "molmo":
+        return create_molmo_prompt(question, method)
+    elif model_name == "pangea":
+        return create_pangea_prompt(question, method)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -406,8 +411,6 @@ def generate_prompt(
             instruction,
             method,
         )
-    elif model_name == "molmo":
-        return create_molmo_prompt(question, method)
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],
@@ -629,183 +632,6 @@ def parse_deepseek_inputs(
         instruction,
         conversation,
     ], None  # image paths not expected for deepseek. Processing of images is within prompt.
-
-
-def parse_molmo_inputs(
-    question_text, question_image, options_list, instruction, few_shot_setting
-):
-    for option in options_list:
-        if ".png" in option:
-            return "multi-image", None
-
-    if instruction != "":
-        prompt = instruction + "\n\n"
-        prompt += "Question: " + question_text + "\n\n"
-    else:
-        prompt = "Question: " + question_text + "\n\n"
-
-    if question_image:
-        prompt += "<image>"
-
-    options = "Options:\n"
-    for i, option in enumerate(options_list):
-        options += chr(65 + i) + ". " + option + "\n"
-
-    prompt += options + "\nAnswer:"
-
-    return prompt, question_image
-
-
-def parse_qwen25_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
-):
-    """
-    Outputs: conversation dictionary supported by qwen2.5 .
-    """
-    system_message = {"role": "system", "content": instruction}
-
-    if question_image:
-        question = [
-            {"type": "text", "text": f"Question: {question_text}"},
-            {"type": "image", "image": f"file:///{question_image}"},
-        ]
-    else:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            }
-        ]
-
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {"type": "image", "image": "file:///{image_path}"}
-
-    images_paths = []
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):  # Checks if it is a png file
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
-            new_image_option["image"] = new_image_option["image"].format(
-                image_path=option
-            )
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            # option delimiter "1)", "2)", ...
-            parsed_options.append(new_text_option)
-            # image for option
-            parsed_options.append(new_image_option)
-
-            # Ads the image for output
-            images_paths.append(option)
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(
-                new_text_option
-            )  # Puts the option text if it isn't an image.
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    return messages, None  # image paths processed in messages by process_vision_info.
-
-
-# Deprecated
-def parse_qwen2_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
-):
-    """
-    Outputs: conversation dictionary supported by qwen.
-    """
-    system_message = {"role": "system", "content": instruction}
-
-    if question_image:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            },
-            {"type": "image"},
-        ]
-    else:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            }
-        ]
-
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {"type": "image"}
-
-    images_paths = []
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):  # Checks if it is a png file
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            # option delimiter "1)", "2)", ...
-            parsed_options.append(new_text_option)
-            # image for option
-            parsed_options.append(new_image_option)
-
-            # Ads the image for output
-            images_paths.append(option)
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(
-                new_text_option
-            )  # Puts the option text if it isn't an image.
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    if question_image:
-        images_paths = [question_image] + images_paths
-
-    return messages, images_paths
 
 
 def format_answer(answer: str):

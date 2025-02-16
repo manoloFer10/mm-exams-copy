@@ -22,7 +22,6 @@ INSTRUCTIONS_COT = {
 
 # Molmo
 def create_molmo_prompt(question, method):
-    content = []
     lang = question["language"]
     prompt = [INSTRUCTIONS_COT[lang]]
     if question["image"] is not None:
@@ -41,6 +40,23 @@ def create_molmo_prompt(question, method):
 
 # Pangea
 def create_pangea_prompt(question, method):
+    lang = question["language"]
+    prompt = [
+        f"<|im_start|>system\n{INSTRUCTIONS_COT[lang]}<|im_end|>\n<|im_start|>user\n"
+    ]
+    if question["image"] is not None:
+        prompt.append("<image>\n")
+        images = question["image"]
+    else:
+        images = None
+    if method == "zero-shot":
+        prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
+        for t, option in enumerate(question["options"]):
+            index = f"{chr(65+t)}. "
+            prompt.append(f"{index}) {option}\n")
+        prompt.append("\nAnswer:")
+    prompt.append("<|im_end|>\n<|im_start|>assistant\n")
+    message = "".join(prompt)
     return message, images
 
 
