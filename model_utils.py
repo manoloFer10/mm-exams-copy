@@ -72,17 +72,16 @@ def initialize_model(
     if model_name == "qwen2-7b":
 
         model = Qwen2VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model",
+            model_path,
             # torch_dtype=torch.float16,
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
+            do_sample=True,
             # attn_implementation="flash_attention_2",
             local_files_only=True,
         )
-        processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", local_files_only=True
-        )
+        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
     elif model_name == "qwen2.5-7b":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -293,7 +292,6 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     return output_text
 
 
-# ERASE: should erase after 2.5 works well
 def query_qwen2(
     model,
     processor,
@@ -302,19 +300,13 @@ def query_qwen2(
     device="cuda",
     max_tokens=MAX_TOKENS,
 ):
-    # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
-    try:
-        images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
-    except:
-        return "Image not found"
+    images = [Image.open(image).resize((256, 256)) for image in image_paths]
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
-    if len(images) == 0:
-        images = None
     inputs = processor(
         text=[text_prompt],
-        images=images,
+        images=[images],
         return_tensors="pt",
         padding=True,
     ).to(device)
