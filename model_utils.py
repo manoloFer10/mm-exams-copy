@@ -333,35 +333,25 @@ def query_qwen2(
     return response[0]
 
 
-def query_qwen25(model, processor, prompt: list, device="cuda", max_tokens=MAX_TOKENS):
-    text = processor.apply_chat_template(
-        prompt, tokenize=False, add_generation_prompt=True
+def query_pangea(
+    model, processor, prompt, image_paths, device="cuda", max_tokens=MAX_TOKENS
+):
+    image_input = Image.open(image_paths).resize((256, 256))
+    model_inputs = processor(images=image_input, text=prompt, return_tensors="pt").to(
+        "cuda", torch.float16
     )
-
-    image_inputs, video_inputs = process_vision_info(prompt)
-
-    inputs = processor(
-        text=[text],
-        images=image_inputs,
-        videos=video_inputs,
-        padding=True,
-        return_tensors="pt",
-    ).to(device)
-
-    # Generate response
-    # with torch.no_grad():
-    with torch.inference_mode():
-        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
-    generated_ids = [
-        output_ids[len(input_ids) :]
-        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
-    ]
-
-    response = processor.batch_decode(
-        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+    output = model.generate(
+        **model_inputs,
+        max_new_tokens=max_tokens,
+        temperature=1.0,
+        top_p=0.9,
+        do_sample=True,
     )
-    torch.cuda.empty_cache()
-    return response[0]
+    output = output[0]
+    result = processor.decode(
+        output, skip_special_tokens=True, clean_up_tokenization_spaces=False
+    )
+    return result
 
 
 def generate_prompt(
