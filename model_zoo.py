@@ -28,16 +28,9 @@ INSTRUCTIONS_COT = {
 def create_qwen2_prompt(question, method):
     content = []
     lang = question["language"]
-    prompt = [INSTRUCTIONS_COT[lang]]
+    prompt = []
     if question["image"] is not None:
-        content.append(
-            {
-                "type": "image",
-                "image": question["image"],
-                "resized_height": 256,
-                "resized_width": 256,
-            }
-        )
+        content.append({"type": "image"})
         images = [question["image"]]
     else:
         images = None
@@ -47,7 +40,10 @@ def create_qwen2_prompt(question, method):
             index = f"{chr(65+t)}. "
             prompt.append(f"{index}) {option}\n")
     content.append({"type": "text", "text": "".join(prompt)})
-    message = [{"role": "user", "content": content}]
+    message = [
+        {"role": "system", "content": INSTRUCTIONS_COT[lang]},
+        {"role": "user", "content": content},
+    ]
     return message, images
 
 
