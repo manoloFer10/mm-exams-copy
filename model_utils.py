@@ -837,6 +837,14 @@ def format_answer(answer: str):
         reasoning = (answer[:start] + answer[end:]).strip()
         # Clean multiple whitespace
         reasoning = re.sub(r"\s+", " ", reasoning)
+    elif len(answer) == 1:
+        reasoning = ""
+        if "A" <= answer <= "Z":
+            # Convert letter to zero-indexed number
+            election = ord(answer) - ord("A")
+        elif "1" <= answer <= "9":
+            # Convert digit to zero-indexed number
+            election = int(answer) - 1
     else:
         # Error handling cases
         election = "No valid answer tag found"
