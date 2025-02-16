@@ -178,14 +178,10 @@ def query_model(
     if model_name in [
         "qwen2-7b",
         "qwen2.5-7b",
-    ]:  # ERASE: should erase after 2.5 works well
+    ]:
         answer = query_qwen2(model, processor, prompt, images, device)
-
-    # elif model_name == "qwen2.5-7b":
-    #    answer = query_qwen25(model, processor, prompt, device, max_tokens)
     elif model_name == "pangea":
-        # Add pangea querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
+        answer = query_pangea(model, processor, prompt, images, device)
     elif model_name == "deepseekVL2-small":
         answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
@@ -207,10 +203,6 @@ def query_model(
         raise ValueError(f"Unsupported model: {model_name}")
 
     return format_answer(answer)
-
-
-def query_pangea():
-    pass
 
 
 def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
