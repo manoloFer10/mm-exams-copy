@@ -14,6 +14,6 @@
 export PYTHONPATH=$(pwd)
 
 python main.py \
---model qwen2.5-7b \
+--model molmo \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924

@@ -19,13 +19,31 @@ INSTRUCTIONS_COT = {
     "lt": "Toliau pateikiamas klausimas su keliomis pasirinkimo galimybėmis. Mąstykite žingsnis po žingsnio ir pateikite savo GALUTINĮ atsakymą tarp žymų <ANSWER> X </ANSWER>, kur X yra TIK teisinga jūsų pasirinkta raidė. Nerašykite jokio papildomo teksto tarp žymų.",
 }
 
+
 # Molmo
+def create_molmo_prompt(question, method):
+    content = []
+    lang = question["language"]
+    prompt = [INSTRUCTIONS_COT[lang]]
+    if question["image"] is not None:
+        images = [question["image"]]
+    else:
+        images = None
+    if method == "zero-shot":
+        prompt.append(f"\n{question['question']} Options: \n")
+        for t, option in enumerate(question["options"]):
+            index = f"{chr(65+t)}. "
+            prompt.append(f"{index}) {option}\n")
+        prompt.append("\nAnswer:")
+        message = "".join(prompt)
+    return message, images
+
 
 # Pangea
 
 
 # Qwen2
-def create_qwen2_prompt(question, method):
+def create_qwen_prompt(question, method):
     content = []
     lang = question["language"]
     prompt = []
@@ -39,6 +57,7 @@ def create_qwen2_prompt(question, method):
         for t, option in enumerate(question["options"]):
             index = f"{chr(65+t)}. "
             prompt.append(f"{index}) {option}\n")
+    prompt.append("\nAnswer:")
     content.append({"type": "text", "text": "".join(prompt)})
     message = [
         {"role": "system", "content": INSTRUCTIONS_COT[lang]},

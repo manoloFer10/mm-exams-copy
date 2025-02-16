@@ -23,7 +23,7 @@ from anthropic import Anthropic
 from torch.cuda.amp import autocast
 from llava.model.builder import load_pretrained_model
 
-from model_zoo import create_qwen2_prompt
+from model_zoo import create_qwen_prompt
 
 
 TEMPERATURE = 0.7
@@ -369,16 +369,7 @@ def generate_prompt(
     method: str = "zero-shot",
 ):
     if model_name in ["qwen2-7b", "qwen2.5-7b"]:
-        return create_qwen2_prompt(question, method)
-    # if model_name == "qwen2.5-7b":
-    #     return parse_qwen25_input(
-    #         question["question"],
-    #         question["image"],
-    #         question["options"],
-    #         lang,
-    #         instruction,
-    #         method,
-    #     )
+        return create_qwen_prompt(question, method)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
