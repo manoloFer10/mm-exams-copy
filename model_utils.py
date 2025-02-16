@@ -8,6 +8,7 @@ from transformers import (
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
+    LlavaNextForConditionalGeneration,
 )
 from qwen_vl_utils import (
     process_vision_info,
@@ -21,7 +22,8 @@ from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
-from llava.model.builder import load_pretrained_model
+
+# from llava.model.builder import load_pretrained_model
 
 from model_zoo import create_qwen_prompt, create_molmo_prompt
 
@@ -406,13 +408,6 @@ def generate_prompt(
         )
     elif model_name == "molmo":
         return create_molmo_prompt(question, method)
-        # return parse_molmo_inputs(
-        #     question["question"],
-        #     question["image"],
-        #     question["options"],
-        #     instruction,
-        #     method,
-        # )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],
@@ -840,6 +835,8 @@ def format_answer(answer: str):
         elif "1" <= answer <= "9":
             # Convert digit to zero-indexed number
             election = int(answer) - 1
+        else:
+            election = answer
     else:
         # Error handling cases
         election = "No valid answer tag found"

@@ -26,7 +26,7 @@ def create_molmo_prompt(question, method):
     lang = question["language"]
     prompt = [INSTRUCTIONS_COT[lang]]
     if question["image"] is not None:
-        images = [question["image"]]
+        images = question["image"]
     else:
         images = None
     if method == "zero-shot":
@@ -40,6 +40,8 @@ def create_molmo_prompt(question, method):
 
 
 # Pangea
+def create_pangea_prompt(question, method):
+    return message, images
 
 
 # Qwen2
