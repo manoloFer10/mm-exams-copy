@@ -1,6 +1,7 @@
 import base64
 import torch
 import re
+from io import BytesIO
 from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
     Qwen2VLForConditionalGeneration,
     Qwen2_5_VLForConditionalGeneration,
@@ -19,8 +20,8 @@ from transformers import (
     GenerationConfig,
 )
 
-from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-from deepseek_vl.utils.io import load_pil_images
+# from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+# from deepseek_vl.utils.io import load_pil_images
 
 from qwen_vl_utils import (
     process_vision_info,
@@ -33,7 +34,7 @@ from torch.cuda.amp import autocast
 from llava.model.builder import load_pretrained_model
 
 TEMPERATURE = 0.7
-MAX_TOKENS = 256
+MAX_TOKENS = 512
 
 SUPPORTED_MODELS = [
     "gpt-4o",
@@ -480,7 +481,9 @@ def parse_openai_input(
             {"type": "text", "text": question_text},
             {
                 "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}",
+                    "detail": 'low'},
             },
         ]
     else:
@@ -491,7 +494,9 @@ def parse_openai_input(
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {
         "type": "image_url",
-        "image_url": {"url": "data:image/jpeg;base64,{base64_image}"},
+        "image_url": {
+            "url": "data:image/jpeg;base64,{base64_image}",
+            "detail": 'low'},
     }
 
     for i, option in enumerate(options_list):
@@ -544,18 +549,25 @@ def parse_anthropic_input(
     """
     system_message = {"role": "system", "content": instruction}
 
-    def encode_image(image_path):
+    def resize_and_encode_image(image_path):
         try:
-            with open(image_path, "rb") as image_file:
-                binary_data = image_file.read()
-                base_64_encoded_data = base64.b64encode(binary_data)
-                base64_string = base_64_encoded_data.decode("utf-8")
-                return base64_string
+            with Image.open(image_path) as img:
+                # Resize the image to 512x512 using an appropriate resampling filter
+                resized_img = img.resize((512, 512), Image.LANCZOS)
+                
+                # Save the resized image to a bytes buffer in PNG format
+                buffer = BytesIO()
+                resized_img.save(buffer, format="PNG")
+                buffer.seek(0)
+                
+                # Encode the image in base64
+                base64_encoded = base64.b64encode(buffer.read()).decode("utf-8")
+                return base64_encoded
         except Exception as e:
-            raise TypeError(f"Image {image_path} could not be encoded. {e}")
+            raise TypeError(f"Image {image_path} could not be processed. {e}")
 
     if question_image:
-        base64_image = encode_image(question_image)
+        base64_image = resize_and_encode_image(question_image)
         question = [
             {"type": "text", "text": question_text},
             {
@@ -583,7 +595,7 @@ def parse_anthropic_input(
                 "source": {
                     "type": "base64",
                     "media_type": "image/png",
-                    "data": encode_image(option),
+                    "data": resize_and_encode_image(option),
                 },
             }
             new_text_option = only_text_option.copy()
@@ -665,8 +677,10 @@ def parse_molmo_inputs(
 
     if instruction != "":
         prompt = instruction + "\n\n"
+        prompt += "Question: " + question_text + "\n\n"
+    else:
+        prompt = "Question: " + question_text + "\n\n"
 
-    prompt = "Question: " + question_text + "\n\n"
 
     if question_image:
         prompt += "<image>"
