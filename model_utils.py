@@ -136,7 +136,9 @@ def initialize_model(
             torch_dtype=torch.float16,
             local_files_only=True,
         ).to(device)
-        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
+        processor = AutoProcessor.from_pretrained(
+            model_path, use_fast=True, local_files_only=True
+        )
         model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         model = OpenAI(api_key=api_key)
