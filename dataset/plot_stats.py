@@ -240,7 +240,7 @@ if __name__ == "__main__":
     # Stacked bar plots per language and in each language we have topic distribution
     data = []
     for (language, category), count in stratified_stats[
-        "questions_by_language_and_general_category"
+        "questions_by_language_and_category"
     ].items():
         data.append({"Language": language, "Category": category, "Count": count})
 

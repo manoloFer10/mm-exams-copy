@@ -2,16 +2,6 @@ import base64
 import torch
 import re
 from io import BytesIO
-from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
-    AutoProcessor,
-    AutoModelForCausalLM,
-    GenerationConfig,
-)
-from qwen_vl_utils import (
-    process_vision_info,
-)
 from transformers import (
     Qwen2VLForConditionalGeneration,
     Qwen2_5_VLForConditionalGeneration,
@@ -19,19 +9,22 @@ from transformers import (
     AutoModelForCausalLM,
     GenerationConfig,
 )
+from qwen_vl_utils import (
+    process_vision_info,
+)
 
 # from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl.utils.io import load_pil_images
 
-from qwen_vl_utils import (
-    process_vision_info,
-)  # (Linux) pip install qwen-vl-utils[decord]==0.0.8
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
 from llava.model.builder import load_pretrained_model
+
+from model_zoo import create_qwen2_prompt
+
 
 TEMPERATURE = 0.7
 MAX_TOKENS = 512
@@ -311,10 +304,7 @@ def query_qwen2(
 ):
     # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
     try:
-        images = [
-            Image.open(image_path).convert("RGB").resize((224, 224))
-            for image_path in image_paths
-        ]
+        images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
     except:
         return "Image not found"
 
@@ -330,7 +320,6 @@ def query_qwen2(
     ).to(device)
 
     # Generate response
-    # with torch.no_grad():
     with torch.inference_mode():
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
     generated_ids = [
@@ -384,15 +373,8 @@ def generate_prompt(
     instruction,
     method: str = "zero-shot",
 ):
-    if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
-        return parse_qwen2_input(
-            question["question"],
-            question["image"],
-            question["options"],
-            lang,
-            instruction,
-            method,
-        )
+    if model_name == "qwen2-7b":
+        return create_qwen2_prompt(question, method)
     if model_name == "qwen2.5-7b":
         return parse_qwen25_input(
             question["question"],
@@ -483,7 +465,8 @@ def parse_openai_input(
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:image/jpeg;base64,{base64_image}",
-                    "detail": 'low'},
+                    "detail": "low",
+                },
             },
         ]
     else:
@@ -494,9 +477,7 @@ def parse_openai_input(
     only_text_option = {"type": "text", "text": "{text}"}
     only_image_option = {
         "type": "image_url",
-        "image_url": {
-            "url": "data:image/jpeg;base64,{base64_image}",
-            "detail": 'low'},
+        "image_url": {"url": "data:image/jpeg;base64,{base64_image}", "detail": "low"},
     }
 
     for i, option in enumerate(options_list):
@@ -554,12 +535,12 @@ def parse_anthropic_input(
             with Image.open(image_path) as img:
                 # Resize the image to 512x512 using an appropriate resampling filter
                 resized_img = img.resize((512, 512), Image.LANCZOS)
-                
+
                 # Save the resized image to a bytes buffer in PNG format
                 buffer = BytesIO()
                 resized_img.save(buffer, format="PNG")
                 buffer.seek(0)
-                
+
                 # Encode the image in base64
                 base64_encoded = base64.b64encode(buffer.read()).decode("utf-8")
                 return base64_encoded
@@ -680,7 +661,6 @@ def parse_molmo_inputs(
         prompt += "Question: " + question_text + "\n\n"
     else:
         prompt = "Question: " + question_text + "\n\n"
-
 
     if question_image:
         prompt += "<image>"

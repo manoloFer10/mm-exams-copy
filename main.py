@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from datasets import load_from_disk, load_dataset
+from datasets import load_from_disk
 import os
 import random
 import json
