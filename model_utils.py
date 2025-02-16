@@ -2,8 +2,8 @@ import base64
 import torch
 import re
 from transformers import (  # pip install git+https://github.com/huggingface/transformers accelerate
-    # Qwen2VLForConditionalGeneration,
-    # Qwen2_5_VLForConditionalGeneration,
+    Qwen2VLForConditionalGeneration,
+    Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
@@ -92,14 +92,14 @@ def initialize_model(
 
     elif model_name == "qwen2.5-7b":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            model_path,
             temperature=TEMPERATURE,
             device_map=device,
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor",  # "Qwen/Qwen2.5-VL-7B-Instruct"
+            model_path,
             local_files_only=True,
         )
 
@@ -381,7 +381,7 @@ def generate_prompt(
     question: dict,
     lang: str,
     instruction,
-    few_shot_setting: str = "zero-shot",
+    method: str = "zero-shot",
 ):
     if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
         return parse_qwen2_input(
@@ -390,7 +390,16 @@ def generate_prompt(
             question["options"],
             lang,
             instruction,
-            few_shot_setting,
+            method,
+        )
+    if model_name == "qwen2.5-7b":
+        return parse_qwen25_input(
+            question["question"],
+            question["image"],
+            question["options"],
+            lang,
+            instruction,
+            method,
         )
     elif model_name in [
         "gpt-4o",
@@ -404,7 +413,7 @@ def generate_prompt(
             question["options"],
             lang,
             instruction,
-            few_shot_setting,
+            method,
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
@@ -415,7 +424,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             instruction,
-            few_shot_setting,
+            method,
         )
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "deepseekVL2-small":
@@ -424,7 +433,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             instruction,
-            few_shot_setting,
+            method,
         )
     elif model_name == "molmo":
         return parse_molmo_inputs(
@@ -432,7 +441,7 @@ def generate_prompt(
             question["image"],
             question["options"],
             instruction,
-            few_shot_setting,
+            method,
         )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
@@ -441,7 +450,7 @@ def generate_prompt(
             question["options"],
             lang,
             instruction,
-            few_shot_setting,
+            method,
         )
     else:
         raise ValueError(f"Unsupported model for parsing inputs: {model_name}")

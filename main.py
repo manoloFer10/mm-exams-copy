@@ -28,7 +28,7 @@ def parse_args():
         help="number of samples to test",
     )
     parser.add_argument(
-        "--setting",
+        "--method",
         type=str,
         default="zero-shot",
         help="[few-shot, zero-shot]",
@@ -86,12 +86,6 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
     dataset = dataset.map(map_image_path)
-    # Language
-    # if lang != "all":
-    #     dataset = dataset.filter(lambda sample: sample["language"] == lang)
-    # else:
-    #     print("evaluating all languages")
-    # Level
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
     return dataset
@@ -108,7 +102,7 @@ def evaluate_model(args):
             results = json.load(f)
             continue_from = len(results)
     else:
-        output_folder = f"outputs/{args.setting}/mode_{args.model}"
+        output_folder = f"outputs/{args.method}/mode_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
         continue_from = 0
@@ -135,7 +129,7 @@ def evaluate_model(args):
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(
-            args.model, question, lang, system_message, args.setting
+            args.model, question, lang, system_message, args.method
         )
         # Query model
         reasoning, prediction = query_model(

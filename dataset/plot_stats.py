@@ -237,6 +237,78 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
+    # Stacked bar plots per language and in each language we have topic distribution
+    data = []
+    for (language, category), count in stratified_stats[
+        "questions_by_language_and_general_category"
+    ].items():
+        data.append({"Language": language, "Category": category, "Count": count})
+
+    df = pd.DataFrame(data)
+    sns.set_palette("pastel")
+
+    # Create the stacked bar plot
+    plt.figure(figsize=(12, 8))
+    sns.barplot(
+        data=df, x="Language", y="Count", hue="Category", width=0.9, linewidth=2
+    )
+
+    # Add labels and title
+    plt.title("Topic Distribution by Language", fontsize=16)
+    plt.xlabel("Language", fontsize=14)
+    plt.ylabel("Count", fontsize=14)
+    plt.legend(title="Category", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
+    # multimodal vs text
+    multimodal_counts = stratified_stats["multimodal_by_language"]
+    total_counts = stratified_stats["questions_by_language"]
+    text_counts = stratified_stats["text_by_language"]
+
+    # Combine into a DataFrame
+    data = []
+    for lang in total_counts:
+        data.append(
+            {
+                "Language": lang,
+                "Question Type": "Multimodal",
+                "Count": multimodal_counts.get(lang, 0),
+            }
+        )
+        data.append(
+            {
+                "Language": lang,
+                "Question Type": "Unimodal",
+                "Count": text_counts.get(lang, 0),
+            }
+        )
+
+    df = pd.DataFrame(data)
+
+    plt.figure(figsize=(12, 8))
+    sns.barplot(
+        data=df, x="Language", y="Count", hue="Question Type", width=0.9, linewidth=1.5
+    )
+
+    # Add labels and title
+    plt.title("Question Type Distribution by Language", fontsize=16)
+    plt.xlabel("Language", fontsize=14)
+    plt.ylabel("Count", fontsize=14)
+    plt.legend(title="Question Type", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45)
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
     import code
 
     code.interact(local=locals())
