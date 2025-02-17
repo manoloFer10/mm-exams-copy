@@ -238,16 +238,16 @@ def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
     return answer
 
 
-def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
+def query_molmo(model, processor, prompt: list, images: list, max_tokens):
     if prompt == "multi-image":
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
     else:
-        if image_path is not None:
+        if images is not None:
             try:
-                images = [Image.open(image_path).convert("RGB").resize((224, 224))]
+                images = [Image.open(images).convert("RGB").resize((224, 224))]
             except:
-                print(image_path)
+                print(images)
                 images = None
         inputs = processor.process(
             images=images,
