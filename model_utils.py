@@ -343,10 +343,11 @@ def query_pangea(
     model, processor, prompt, image_paths, device="cuda", max_tokens=MAX_TOKENS
 ):
     try:
-        image_input = Image.open(image_paths).resize((256, 256))
-    except:
-        print(image_paths)
+        image_input = Image.open(image_paths).convert("RGB").resize((224, 224))
+    except Exception as e:
+        print("Failed to load image:", e)
         image_input = None
+
     model_inputs = processor(images=image_input, text=prompt, return_tensors="pt").to(
         "cuda", torch.float16
     )
