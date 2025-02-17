@@ -29,7 +29,7 @@ from model_zoo import create_qwen_prompt, create_molmo_prompt, create_pangea_pro
 
 
 TEMPERATURE = 0.7
-MAX_TOKENS = 512
+MAX_TOKENS = 256
 
 SUPPORTED_MODELS = [
     "gpt-4o",
@@ -119,6 +119,7 @@ def initialize_model(
             torch_dtype="auto",
             device_map="auto",
             local_files_only=True,
+            trust_remote_code=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
@@ -126,6 +127,7 @@ def initialize_model(
             do_sample=True,
             device_map=device,
             local_files_only=True,
+            trust_remote_code=True,
         ).eval()
 
     elif model_name == "pangea":
