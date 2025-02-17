@@ -11,8 +11,9 @@ from eval_utils import (
     perform_accuracy_evaluation,
     perform_descriptive_statistics,
     perform_experiments,
-    perform_plots
+    perform_plots,
 )
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -23,73 +24,71 @@ def parse_args():
         help="number of samples to evaluate",
     )
     parser.add_argument(
-        "--results_dataset", 
-        type=str, 
-        required=True, 
-        help="dataset name or path"
+        "--results_dataset", type=str, required=True, help="dataset name or path"
     )
     parser.add_argument(
         "--is_hf_dataset",
-        type=str, 
+        type=str,
         required=True,
-        help= "boolean to determine if it is a name/path from a dataset in HF." 
+        help="boolean to determine if it is a name/path from a dataset in HF.",
     )
     parser.add_argument(
-        "--hf_token",
-        type=str, 
-        help= "HF token to access private datasets (if needed)" 
+        "--hf_token", type=str, help="HF token to access private datasets (if needed)"
     )
     parser.add_argument(
-        "--evaluation_style", 
-        type=str, 
-        required=True, 
-        help=f"type of evaluation to perform. Should be one of: {', '.join(EVALUATION_STYLES)}"
-    )
-    parser.add_argument(
-        "--output_folder",
-        type=str, 
+        "--evaluation_style",
+        type=str,
         required=True,
-        help= "where to save output results" 
+        help=f"type of evaluation to perform. Should be one of: {', '.join(EVALUATION_STYLES)}",
+    )
+    parser.add_argument(
+        "--output_folder", type=str, required=True, help="where to save output results"
     )
     args = parser.parse_args()
     return args
 
+
 def run_evaluation(results, style, output_folder):
 
-    if style not in EVALUATION_STYLES: raise NameError(f'{style} is not a supported evaluation style. Evaluation styles: {EVALUATION_STYLES}')
+    if style not in EVALUATION_STYLES:
+        raise NameError(
+            f"{style} is not a supported evaluation style. Evaluation styles: {EVALUATION_STYLES}"
+        )
 
     os.makedirs(output_folder, exist_ok=True)
 
-    if style == 'complete':
+    if style == "complete":
         perform_complete_evaluation(results, output_folder)
-    if style == 'accuracy':
+    if style == "accuracy":
         perform_accuracy_evaluation(results, output_folder)
-    if style == 'statistics':
+    if style == "statistics":
         perform_descriptive_statistics(results, output_folder)
-    if style == 'experiments':
+    if style == "experiments":
         perform_experiments(results, output_folder)
-    if style == 'plotting':
+    if style == "plotting":
         perform_plots(results, output_folder)
+
 
 def load_dataset_from_entry(args):
 
     if args.hf_token:
-        print('Logging in...')
+        print("Logging in...")
         login(args.hf_token)
 
     if isinstance(args.results_dataset, str):
-        if args.is_hf_dataset == 'True':
-            results = load_dataset(args.results_dataset)['train']
+        if args.is_hf_dataset == "True":
+            results = load_dataset(args.results_dataset)["train"]
             df_dataset = results.to_pandas()
         else:
             df_dataset = pd.read_json(args.results_dataset)
     else:
-        raise TypeError(f'Unexpected dataset format: {args.results_dataset}')       
+        raise TypeError(f"Unexpected dataset format: {args.results_dataset}")
 
-    if args.num_samples != 'all':
+    if args.num_samples != "all":
         df_dataset = df_dataset.head(int(args.num_samples))
-    
+
     return df_dataset
+
 
 def main():
     args = parse_args()
@@ -98,6 +97,7 @@ def main():
     results = load_dataset_from_entry(args)
 
     run_evaluation(results, args.evaluation_style, args.output_folder)
-    
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     main()

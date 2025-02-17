@@ -29,7 +29,9 @@ def create_molmo_prompt(question, method):
     else:
         images = None
     if method == "zero-shot":
-        prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
+        prompt.append(
+            f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+        )
         for t, option in enumerate(question["options"]):
             index = f"{chr(65+t)}. "
             prompt.append(f"{index}) {option}\n")
@@ -50,7 +52,9 @@ def create_pangea_prompt(question, method):
     else:
         images = None
     if method == "zero-shot":
-        prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
+        prompt.append(
+            f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+        )
         for t, option in enumerate(question["options"]):
             index = f"{chr(65+t)}. "
             prompt.append(f"{index}) {option}\n")

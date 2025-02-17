@@ -132,6 +132,7 @@ def evaluate_model(args):
             args.model, question, lang, system_message, args.method
         )
         # Query model
+
         reasoning, prediction = query_model(
             args.model,
             model,

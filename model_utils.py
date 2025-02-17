@@ -340,11 +340,11 @@ def query_qwen2(
 
 
 def query_pangea(
-    model, processor, prompt, image_paths, device="cuda", max_tokens=MAX_TOKENS
+    model, processor, prompt, image_path, device="cuda", max_tokens=MAX_TOKENS
 ):
-    if image_paths is not None and type(image_paths) == str:
+    if image_path is not None and type(image_path) == str:
         try:
-            image_input = Image.open(image_paths).convert("RGB").resize((224, 224))
+            image_input = Image.open(image_path).convert("RGB").resize((224, 224))
         except Exception as e:
             print("Failed to load image:", e)
             image_input = None
@@ -358,6 +358,7 @@ def query_pangea(
         temperature=1.0,
         top_p=0.9,
         do_sample=True,
+        pad_token_id=processor.tokenizer.eos_token_id,
     )
     output = output[0]
     result = processor.decode(
@@ -395,15 +396,6 @@ def generate_prompt(
         )
     elif model_name == "maya":
         # Add Maya-specific parsing
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == "pangea":
-        return parse_pangea_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            instruction,
-            method,
-        )
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "deepseekVL2-small":
         return parse_deepseek_inputs(
