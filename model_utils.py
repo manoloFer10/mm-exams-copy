@@ -243,11 +243,12 @@ def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
     else:
-        try:
-            images = [Image.open(image_path).convert("RGB").resize((224, 224))]
-        except:
-            print(image_path)
-            images = None
+        if image_path is not None:
+            try:
+                images = [Image.open(image_path).convert("RGB").resize((224, 224))]
+            except:
+                print(image_path)
+                images = None
         inputs = processor.process(
             images=images,
             text=prompt,
@@ -306,17 +307,18 @@ def query_qwen2(
     device="cuda",
     max_tokens=MAX_TOKENS,
 ):
-    try:
-        images = [[Image.open(image).resize((256, 256)) for image in image_paths]]
-    except:
-        print(image_paths)
-        images = None
+    if image_paths is not None:
+        try:
+            images = [Image.open(image).resize((256, 256)) for image in image_paths]
+        except:
+            print(image_paths)
+            image_paths = None
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
     inputs = processor(
         text=[text_prompt],
-        images=images,
+        images=[images],
         return_tensors="pt",
         padding=True,
     ).to(device)
