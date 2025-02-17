@@ -21,27 +21,37 @@ INSTRUCTIONS_COT = {
 
 
 # Molmo
-def create_molmo_prompt(question, method):
+def create_molmo_prompt(question, method, few_shot_samples):
     lang = question["language"]
     prompt = [INSTRUCTIONS_COT[lang]]
     if question["image"] is not None:
         images = question["image"]
     else:
         images = None
-    if method == "zero-shot":
-        prompt.append(
-            f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
-        )
-        for t, option in enumerate(question["options"]):
-            index = f"{chr(65+t)}. "
-            prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-        prompt.append("\nAnswer:")
-        message = "".join(prompt)
+    if method == "few-shot":
+        few_shot = few_shot_samples.get(lang, [])
+        for q in few_shot:
+            prompt.append(
+                f"\nQuestion: {q['question'].replace('<image>', '')} \nOptions: \n"
+            )
+            for t, option in enumerate(question["options"]):
+                index = f"{chr(65+t)}. "
+                prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+            prompt.append(f"\nAnswer: <ANSWER>{chr(65+t)}</ANSWER>\n")
+    # zero-shot and/or end question
+    prompt.append(
+        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append("\nAnswer:")
+    message = "".join(prompt)
     return message, images
 
 
 # Pangea
-def create_pangea_prompt(question, method):
+def create_pangea_prompt(question, method, few_shot_samples):
     lang = question["language"]
     prompt = [
         f"<|im_start|>system\n{INSTRUCTIONS_COT[lang]}<|im_end|>\n<|im_start|>user\n"
@@ -65,7 +75,7 @@ def create_pangea_prompt(question, method):
 
 
 # Qwen2
-def create_qwen_prompt(question, method):
+def create_qwen_prompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]
     prompt = []

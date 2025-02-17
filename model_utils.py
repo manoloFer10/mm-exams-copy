@@ -101,16 +101,16 @@ def initialize_model(
     elif model_name == "deepseekVL2-small":
         model_path = "deepseek-ai/deepseek-vl2-small"
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            Path(model_path) / "model", local_files_only=True
+            model_path, local_files_only=True
         )
 
         model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "processor",
-            trust_remote_code=True,
+            model_path,
             temperature=0.7,
             device_map="auto",
             torch_dtype=torch.bfloat16,
             local_files_only=True,
+            trust_remote_code=True,
         ).eval()
 
     elif model_name == "molmo":
@@ -340,16 +340,16 @@ def query_qwen2(
 
 
 def query_pangea(
-    model, processor, prompt, image_path, device="cuda", max_tokens=MAX_TOKENS
+    model, processor, prompt, images, device="cuda", max_tokens=MAX_TOKENS
 ):
-    if image_path is not None and type(image_path) == str:
+    if images is not None:
         try:
-            image_input = Image.open(image_path).convert("RGB").resize((224, 224))
+            images = Image.open(images).convert("RGB").resize((224, 224))
         except Exception as e:
             print("Failed to load image:", e)
-            image_input = None
+            images = None
 
-    model_inputs = processor(images=image_input, text=prompt, return_tensors="pt").to(
+    model_inputs = processor(images=images, text=prompt, return_tensors="pt").to(
         "cuda", torch.float16
     )
     output = model.generate(
@@ -372,14 +372,15 @@ def generate_prompt(
     question: dict,
     lang: str,
     instruction,
+    few_shot_samples: dict,
     method: str = "zero-shot",
 ):
     if model_name in ["qwen2-7b", "qwen2.5-7b"]:
-        return create_qwen_prompt(question, method)
+        return create_qwen_prompt(question, method, few_shot_samples)
     elif model_name == "molmo":
-        return create_molmo_prompt(question, method)
+        return create_molmo_prompt(question, method, few_shot_samples)
     elif model_name == "pangea":
-        return create_pangea_prompt(question, method)
+        return create_pangea_prompt(question, method, few_shot_samples)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",

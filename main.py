@@ -5,6 +5,7 @@ import os
 import random
 import json
 from tqdm import tqdm
+from collections import defaultdict
 
 from model_utils import (
     initialize_model,
@@ -79,7 +80,9 @@ def map_image_path(example):
     return example
 
 
-def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
+def load_and_filter_dataset(
+    dataset_name: str, lang: str, num_samples: int, method: str
+):
     """
     Load and filter the dataset based on language and number of samples.
     """
@@ -88,7 +91,14 @@ def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
     dataset = dataset.map(map_image_path)
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
-    return dataset
+    few_shot_examples = defaultdict(list)
+    if method == "few-shot":
+        assert len(dataset) == 2
+        for sample in dataset["train"]:
+            lang = sample["language"]
+            few_shot_examples[lang].append(sample)
+        dataset = dataset["test"]
+    return dataset, few_shot_examples
 
 
 def evaluate_model(args):
@@ -102,7 +112,7 @@ def evaluate_model(args):
             results = json.load(f)
             continue_from = len(results)
     else:
-        output_folder = f"outputs/{args.method}/mode_{args.model}"
+        output_folder = f"outputs/{args.method}/{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
         continue_from = 0
@@ -114,8 +124,8 @@ def evaluate_model(args):
     max_tokens = MAX_TOKENS
 
     # Load dataset
-    dataset = load_and_filter_dataset(
-        args.dataset, args.selected_langs, args.num_samples
+    dataset, few_shot_samples = load_and_filter_dataset(
+        args.dataset, args.selected_langs, args.num_samples, args.method
     )
     print(dataset)
 
@@ -129,7 +139,12 @@ def evaluate_model(args):
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
         prompt, image_paths = generate_prompt(
-            args.model, question, lang, system_message, args.method
+            model_name=args.model,
+            question=question,
+            lang=lang,
+            instruction=system_message,
+            few_shot_samples=few_shot_samples,
+            method=args.method,
         )
         # Query model
 
