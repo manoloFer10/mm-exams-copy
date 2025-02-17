@@ -139,6 +139,7 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(
             model_path, use_fast=True, local_files_only=True
         )
+        processor.patch_size = 14
         model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         model = OpenAI(api_key=api_key)
@@ -306,7 +307,7 @@ def query_qwen2(
     max_tokens=MAX_TOKENS,
 ):
     try:
-        images = [Image.open(image).resize((256, 256)) for image in image_paths]
+        images = [[Image.open(image).resize((256, 256)) for image in image_paths]]
     except:
         print(image_paths)
         images = None
@@ -315,7 +316,7 @@ def query_qwen2(
 
     inputs = processor(
         text=[text_prompt],
-        images=[images],
+        images=images,
         return_tensors="pt",
         padding=True,
     ).to(device)
