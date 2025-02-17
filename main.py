@@ -141,7 +141,6 @@ def evaluate_model(args):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-
         question["prediction_by_" + args.model] = prediction
         question["reasoning_by_" + args.model] = reasoning
         question["prompt_used"] = prompt

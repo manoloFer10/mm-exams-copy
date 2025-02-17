@@ -242,8 +242,13 @@ def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
     else:
+        try:
+            images = [Image.open(image_path).convert("RGB").resize((224, 224))]
+        except:
+            print(image_path)
+            images = None
         inputs = processor.process(
-            images=[Image.open(image_path).convert("RGB").resize((224, 224))],
+            images=images,
             text=prompt,
         )
         # move inputs to the correct device and make a batch of size 1
@@ -300,7 +305,11 @@ def query_qwen2(
     device="cuda",
     max_tokens=MAX_TOKENS,
 ):
-    images = [Image.open(image).resize((256, 256)) for image in image_paths]
+    try:
+        images = [Image.open(image).resize((256, 256)) for image in image_paths]
+    except:
+        print(image_paths)
+        images = None
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
@@ -330,7 +339,11 @@ def query_qwen2(
 def query_pangea(
     model, processor, prompt, image_paths, device="cuda", max_tokens=MAX_TOKENS
 ):
-    image_input = Image.open(image_paths).resize((256, 256))
+    try:
+        image_input = Image.open(image_paths).resize((256, 256))
+    except:
+        print(image_paths)
+        image_input = None
     model_inputs = processor(images=image_input, text=prompt, return_tensors="pt").to(
         "cuda", torch.float16
     )
@@ -655,10 +668,6 @@ def format_answer(answer: str):
         reasoning = answer.strip()
 
     return reasoning, election
-
-
-def parse_pangea_inputs(question):
-    return messages, image_paths
 
 
 def fetch_cot_instruction(lang: str) -> str:
