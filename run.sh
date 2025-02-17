@@ -11,6 +11,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --output=./slurm/eval_%j.log
 
+export HF_HUB_OFFLINE=1
 export PYTHONPATH=$(pwd)
 
 python main.py \

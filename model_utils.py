@@ -116,14 +116,12 @@ def initialize_model(
     elif model_name == "molmo":
         processor = AutoProcessor.from_pretrained(
             model_path,
-            trust_remote_code=True,
             torch_dtype="auto",
             device_map="auto",
             local_files_only=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            trust_remote_code=True,
             temperature=TEMPERATURE,
             do_sample=True,
             device_map=device,

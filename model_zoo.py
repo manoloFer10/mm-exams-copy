@@ -34,7 +34,7 @@ def create_molmo_prompt(question, method):
         )
         for t, option in enumerate(question["options"]):
             index = f"{chr(65+t)}. "
-            prompt.append(f"{index}) {option}\n")
+            prompt.append(f"{index}) {option.replace('<image>', '')}\n")
         prompt.append("\nAnswer:")
         message = "".join(prompt)
     return message, images
@@ -57,7 +57,7 @@ def create_pangea_prompt(question, method):
         )
         for t, option in enumerate(question["options"]):
             index = f"{chr(65+t)}. "
-            prompt.append(f"{index}) {option}\n")
+            prompt.append(f"{index}) {option.replace('<image>', '')}\n")
         prompt.append("\nAnswer:")
     prompt.append("<|im_end|>\n<|im_start|>assistant\n")
     message = "".join(prompt)
