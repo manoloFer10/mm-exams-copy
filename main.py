@@ -133,12 +133,19 @@ def evaluate_model(args):
         output_path = args.resume
         with open(output_path, "r") as f:
             results = json.load(f)
-            continue_from = len(results)
+            unique_results = set(
+                (example["question"], tuple(example["options"])) for example in results
+            )
+            results = [
+                example
+                for example in results
+                if (example["question"], tuple(example["options"]))
+                not in unique_results
+            ]
     else:
         output_folder = f"outputs/{args.method}/{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
-        continue_from = 0
         results = []
 
     # Initialize model
