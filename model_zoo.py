@@ -34,10 +34,10 @@ def create_molmo_prompt(question, method, few_shot_samples):
             prompt.append(
                 f"\nQuestion: {q['question'].replace('<image>', '')} \nOptions: \n"
             )
-            for t, option in enumerate(question["options"]):
+            for t, option in enumerate(q["options"]):
                 index = f"{chr(65+t)}. "
                 prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-            prompt.append(f"\nAnswer: <ANSWER>{chr(65+t)}</ANSWER>\n")
+            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
     # zero-shot and/or end question
     prompt.append(
         f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
@@ -84,11 +84,20 @@ def create_qwen_prompt(question, method, few_shot_samples):
         images = [question["image"]]
     else:
         images = None
-    if method == "zero-shot":
-        prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
-        for t, option in enumerate(question["options"]):
-            index = f"{chr(65+t)}. "
-            prompt.append(f"{index}) {option}\n")
+
+    if method == "few-shot":
+        few_shot = few_shot_samples.get(lang, [])
+        for q in few_shot:
+            prompt.append(f"\nQuestion: {q['question']} \nOptions: \n")
+            for t, option in enumerate(q["options"]):
+                index = f"{chr(65+t)}. "
+                prompt.append(f"{index}) {option}\n")
+            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
+
+    prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option}\n")
     prompt.append("\nAnswer:")
     content.append({"type": "text", "text": "".join(prompt)})
     message = [

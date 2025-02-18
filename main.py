@@ -139,8 +139,7 @@ def evaluate_model(args):
             results = [
                 example
                 for example in results
-                if (example["question"], tuple(example["options"]))
-                not in unique_results
+                if (example["question"], tuple(example["options"])) in unique_results
             ]
     else:
         output_folder = f"outputs/{args.method}/{args.model}"
@@ -178,8 +177,8 @@ def evaluate_model(args):
             few_shot_samples=few_shot_samples,
             method=args.method,
         )
-        # Query model
 
+        # Query model
         reasoning, prediction = query_model(
             args.model,
             model,

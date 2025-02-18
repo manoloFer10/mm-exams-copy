@@ -309,7 +309,7 @@ def query_qwen2(
 ):
     if image_paths is not None:
         try:
-            images = [Image.open(image).resize((256, 256)) for image in image_paths]
+            images = [Image.open(image).resize((224, 224)) for image in image_paths]
         except:
             print(image_paths)
             image_paths = None
@@ -684,3 +684,21 @@ def fetch_few_shot_examples(lang):
     raise NotImplementedError(
         "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
     )
+
+
+def format_other_answers(sample):
+    answer = sample["reasoning_by_pangea"]
+    pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
+    match = re.search(pattern, answer, re.IGNORECASE)
+    if match:  # Extract and convert answer letter
+        letter = match.group(1).upper()
+        election = ord(letter) - ord("A")
+        sample["prediction_by_pangea"] = election
+        return sample
+    match = re.search(r"Answer: assistant (\w)", answer)
+    if match:
+        letter = match.group(1).upper()
+        election = ord(letter) - ord("A")
+        sample["prediction_by_pangea"] = election
+        return sample
+    return sample
