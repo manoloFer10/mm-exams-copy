@@ -116,6 +116,7 @@ def evaluate_model(args):
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
         continue_from = 0
+        results = []
 
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
@@ -130,7 +131,6 @@ def evaluate_model(args):
     print(dataset)
 
     # Evaluate each question
-    results = []
     for t, question in tqdm(enumerate(dataset), total=len(dataset)):
         if t < continue_from:
             continue
