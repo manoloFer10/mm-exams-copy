@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from datasets import load_from_disk
+from datasets import load_from_disk, Dataset
 import os
 import random
 import json
@@ -80,8 +80,29 @@ def map_image_path(example):
     return example
 
 
+def filter_ready(dataset, results):
+    hf_questions = set(
+        (example["question"], tuple(example["options"])) for example in dataset
+    )
+    json_questions = set(
+        (example["question"], tuple(example["options"])) for example in results
+    )
+    # Find duplicates
+    common_questions = hf_questions.intersection(json_questions)
+
+    # Filter out duplicates from the HF dataset
+    filtered_data = [
+        example
+        for example in dataset
+        if (example["question"], tuple(example["options"])) not in common_questions
+    ]
+
+    # Convert back to Hugging Face dataset
+    return Dataset.from_list(filtered_data)
+
+
 def load_and_filter_dataset(
-    dataset_name: str, lang: str, num_samples: int, method: str
+    dataset_name: str, lang: str, num_samples: int, method: str, results: list = []
 ):
     """
     Load and filter the dataset based on language and number of samples.
@@ -92,6 +113,8 @@ def load_and_filter_dataset(
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
     few_shot_examples = defaultdict(list)
+    if results:
+        dataset = filter_ready(dataset, results)
     if method == "few-shot":
         assert len(dataset) == 2
         for sample in dataset["train"]:
@@ -126,14 +149,16 @@ def evaluate_model(args):
 
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(
-        args.dataset, args.selected_langs, args.num_samples, args.method
+        args.dataset,
+        args.selected_langs,
+        args.num_samples,
+        args.method,
+        results,
     )
     print(dataset)
 
     # Evaluate each question
     for t, question in tqdm(enumerate(dataset), total=len(dataset)):
-        if t < continue_from:
-            continue
         lang = question["language"]
         system_message = fetch_cot_instruction(lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
