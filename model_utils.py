@@ -303,22 +303,22 @@ def query_qwen2(
     model,
     processor,
     prompt: list,
-    image_paths: list,
+    images: list,
     device="cuda",
     max_tokens=MAX_TOKENS,
 ):
-    if image_paths is not None:
+    if images is not None:
         try:
-            images = [Image.open(image).resize((224, 224)) for image in image_paths]
+            images = [Image.open(image).resize((224, 224)) for image in images]
         except:
-            print(image_paths)
-            image_paths = None
+            print(images)
+            images = None
 
     text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
     inputs = processor(
         text=[text_prompt],
-        images=[images],
+        images=images,
         return_tensors="pt",
         padding=True,
     ).to(device)
@@ -645,11 +645,11 @@ def format_answer(answer: str):
 
         # Extract reasoning by removing answer tag section
         start, end = match.span()
-        reasoning = (answer[:start] + answer[end:]).strip()
+        reasoning = answer.strip()
         # Clean multiple whitespace
         reasoning = re.sub(r"\s+", " ", reasoning)
     elif len(answer) == 1:
-        reasoning = ""
+        reasoning = answer
         if "A" <= answer <= "Z":
             # Convert letter to zero-indexed number
             election = ord(answer) - ord("A")
@@ -684,21 +684,3 @@ def fetch_few_shot_examples(lang):
     raise NotImplementedError(
         "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
     )
-
-
-def format_other_answers(sample):
-    answer = sample["reasoning_by_pangea"]
-    pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
-    match = re.search(pattern, answer, re.IGNORECASE)
-    if match:  # Extract and convert answer letter
-        letter = match.group(1).upper()
-        election = ord(letter) - ord("A")
-        sample["prediction_by_pangea"] = election
-        return sample
-    match = re.search(r"Answer: assistant (\w)", answer)
-    if match:
-        letter = match.group(1).upper()
-        election = ord(letter) - ord("A")
-        sample["prediction_by_pangea"] = election
-        return sample
-    return sample

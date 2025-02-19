@@ -113,14 +113,14 @@ def load_and_filter_dataset(
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
     few_shot_examples = defaultdict(list)
-    if results:
-        dataset = filter_ready(dataset, results)
     if method == "few-shot":
         assert len(dataset) == 2
         for sample in dataset["train"]:
             lang = sample["language"]
             few_shot_examples[lang].append(sample)
         dataset = dataset["test"]
+    if results:
+        dataset = filter_ready(dataset, results)
     return dataset, few_shot_examples
 
 
@@ -188,8 +188,8 @@ def evaluate_model(args):
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        question["prediction_by_" + args.model] = prediction
-        question["reasoning_by_" + args.model] = reasoning
+        question["prediction"] = prediction
+        question["reasoning"] = reasoning
         question["prompt_used"] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)

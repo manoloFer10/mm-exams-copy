@@ -61,14 +61,23 @@ def create_pangea_prompt(question, method, few_shot_samples):
         images = question["image"]
     else:
         images = None
-    if method == "zero-shot":
-        prompt.append(
-            f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
-        )
-        for t, option in enumerate(question["options"]):
-            index = f"{chr(65+t)}. "
-            prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-        prompt.append("\nAnswer:")
+    if method == "few-shot":
+        few_shot = few_shot_samples.get(lang, [])
+        for q in few_shot:
+            prompt.append(
+                f"\nQuestion: {q['question'].replace('<image>', '')} \nOptions: \n"
+            )
+            for t, option in enumerate(q["options"]):
+                index = f"{chr(65+t)}. "
+                prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
+    prompt.append(
+        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append("\nAnswer:")
     prompt.append("<|im_end|>\n<|im_start|>assistant\n")
     message = "".join(prompt)
     return message, images
