@@ -1,8 +1,8 @@
 test data/
-eval_results/
 run.ps1
 run_*
-results/
+*results*
+*temp*
 .DS_Store
 outputs/
 slurm/

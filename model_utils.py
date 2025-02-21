@@ -21,6 +21,7 @@ from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
 from torch.cuda.amp import autocast
+from tenacity import retry, stop_after_attempt, wait_exponential
 from llava.model.builder import load_pretrained_model
 
 from model_zoo import create_qwen2_prompt
@@ -38,7 +39,7 @@ SUPPORTED_MODELS = [
     "claude-3-5-sonnet-latest",
     "molmo",
     "deepseekVL2-small",
-]  # "claude-3-5-haiku-latest" haiku does not support image input
+] 
 
 
 INSTRUCTIONS_COT = {
@@ -100,13 +101,14 @@ def initialize_model(
     elif model_name == "deepseekVL2-small":
         model_path = "deepseek-ai/deepseek-vl2-small"
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            Path(model_path) / "model", local_files_only=True
+            model_path, 
+            local_files_only=True
         )
 
         model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "processor",
+            model_path,
             trust_remote_code=True,
-            temperature=0.7,
+            temperature=TEMPERATURE,
             device_map="auto",
             torch_dtype=torch.bfloat16,
             local_files_only=True,
@@ -265,7 +267,7 @@ def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
 
         return generated_text
 
-
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_openai(client, model_name, prompt, temperature, max_tokens):
     response = client.chat.completions.create(
         model=model_name,
@@ -276,7 +278,7 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
     output_text = response.choices[0].message.content.strip()
     return output_text
 
-
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
     system_message = prompt[0]["content"]

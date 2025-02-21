@@ -79,13 +79,28 @@ def map_image_path(example):
     return example
 
 
-def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int):
+def load_and_filter_dataset(dataset_name: str, lang: str, num_samples: int, model):
     """
     Load and filter the dataset based on language and number of samples.
     """
+    # Define a filtering function
+    def multimodal_only(example):
+        return example["image"]
+    def text_only(example):
+        return example["image"] is None  # Returns True when image is None
+
+    # Apply the filter
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
     dataset = dataset.map(map_image_path)
+    #dataset = dataset.filter(text_only)
+    
+    # Language
+    # if lang != "all":
+    #     dataset = dataset.filter(lambda sample: sample["language"] == lang)
+    # else:
+    #     print("evaluating all languages")
+    # Level
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
     return dataset
@@ -95,12 +110,19 @@ def evaluate_model(args):
     """
     Run the evaluation pipeline for the specified model.
     """
+    def is_multi_image(question):
+        res = False
+        for opt in question['options']:
+            if opt.endswith('.png'): res = True
+        return res
+
     # Set path
     if args.resume:
         output_path = args.resume
         with open(output_path, "r") as f:
             results = json.load(f)
             continue_from = len(results)
+        
     else:
         output_folder = f"outputs/{args.method}/mode_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
@@ -116,7 +138,7 @@ def evaluate_model(args):
 
     # Load dataset
     dataset = load_and_filter_dataset(
-        args.dataset, args.selected_langs, args.num_samples
+        args.dataset, args.selected_langs, args.num_samples, args.model
     )
     print(dataset)
 
@@ -128,23 +150,26 @@ def evaluate_model(args):
         system_message = fetch_cot_instruction(lang)
         # Generate prompt. Note that only local models will need image_paths separatedly.
 
-        prompt, image_paths = generate_prompt(
-            args.model, question, lang, system_message, args.method
-        )
-        # Query model
-        reasoning, prediction = query_model(
-            args.model,
-            model,
-            processor,
-            prompt,
-            image_paths,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        if is_multi_image(question):
+            reasoning, prediction = 'MULTI-IMAGE', 'MULTI-IMAGE'
+        else:
+            prompt, image_paths = generate_prompt(
+                args.model, question, lang, system_message, args.setting
+            )
+            # Query model
+            reasoning, prediction = query_model(
+                args.model,
+                model,
+                processor,
+                prompt,
+                image_paths,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
 
         question["prediction_by_" + args.model] = prediction
         question["reasoning_by_" + args.model] = reasoning
-        question["prompt_used"] = prompt
+        # question["prompt_used"] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)
 
