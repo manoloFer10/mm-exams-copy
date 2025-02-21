@@ -210,19 +210,14 @@ def query_model(
     return format_answer(answer)
 
 
-def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
-    instruction = prompt[0]
-    conversation = prompt[1]
-
-    tokenizer = model.tokenizer
-    pil_images = load_pil_images(prompt)
+def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
+    pil_images = load_pil_images(prompt[1])
     prepare_inputs = processor(
-        conversations=conversation,
+        system_prompt=prompt[0],
+        conversations=prompt[1],
         images=pil_images,
         force_batchify=True,
-        system_prompt=instruction,
     ).to(model.device)
-
     # run image encoder to get the image embeddings
     inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
 
@@ -230,15 +225,17 @@ def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
     outputs = model.language.generate(
         inputs_embeds=inputs_embeds,
         attention_mask=prepare_inputs.attention_mask,
-        pad_token_id=tokenizer.eos_token_id,
-        bos_token_id=tokenizer.bos_token_id,
-        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=processor.tokenizer.eos_token_id,
+        bos_token_id=processor.tokenizer.bos_token_id,
+        eos_token_id=processor.tokenizer.eos_token_id,
         max_new_tokens=max_tokens,
-        do_sample=False,
+        do_sample=True,
         use_cache=True,
     )
 
-    answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=False)
+    answer = processor.tokenizer.decode(
+        outputs[0].cpu().tolist(), skip_special_tokens=False
+    )
     return answer
 
 

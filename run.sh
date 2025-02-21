@@ -19,8 +19,14 @@ export PYTHONPATH=$(pwd)
 # --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
 # --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Pangea-7B-hf
 
- python main.py \
- --model molmo \
- --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset-fewshot.hf/ \
- --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924 \
- --method few-shot
+# python main.py \
+# --model molmo \
+# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset-fewshot.hf/ \
+# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924 \
+# --method few-shot
+
+python main.py \
+--model deepseek \
+--dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-small \
+--method zero-shot
