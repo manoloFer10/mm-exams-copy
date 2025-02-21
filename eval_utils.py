@@ -350,18 +350,23 @@ def perform_plots(df_dataset, output_folder):
     os.makedirs(output_folder, exist_ok=True)
 
     #Spider graph; model accuracy by lang
-    generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_language.csv', 'language', output_folder)
-    generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
+    if os.path.exists(f'{origin_folder}/results_accuracy'):
+        generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_language.csv', 'language', output_folder)
+        generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
+    else:
+        print('No accuracy results folder detected... passing to statistics plots.')
 
-    #Multimodality distribution across lang grouped barplot. Inputs raw json.
+    #Multimodality distribution across lang grouped barplot.
     plot_multimodality_distribution(df_dataset, output_folder)
 
-    #Category distribution across lang stacked barplot. Inputs csv.
-    plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
-    plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
-    plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
-    plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
-
+    #Category distribution across lang stacked barplot. 
+    if os.path.exists(f'{origin_folder}/statistics'):
+        plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+    else:
+        print('No statistics results folder detected...')
 
     print(f'All plots saved to {output_folder}')
 

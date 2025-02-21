@@ -4,6 +4,7 @@ import argparse
 import pandas as pd
 import os
 from datasets import load_dataset, Dataset
+from huggingface_hub import login
 from eval_utils import (
     EVALUATION_STYLES,
     perform_complete_evaluation,
@@ -26,6 +27,17 @@ def parse_args():
         type=str, 
         required=True, 
         help="dataset name or path"
+    )
+    parser.add_argument(
+        "--is_hf_dataset",
+        type=str, 
+        required=True,
+        help= "boolean to determine if it is a name/path from a dataset in HF." 
+    )
+    parser.add_argument(
+        "--hf_token",
+        type=str, 
+        help= "HF token to access private datasets (if needed)" 
     )
     parser.add_argument(
         "--evaluation_style", 
@@ -57,17 +69,20 @@ def run_evaluation(results, style, output_folder):
     if style == 'experiments':
         perform_experiments(results, output_folder)
     if style == 'plotting':
-        perform_plots(output_folder)
+        perform_plots(results, output_folder)
 
 def load_dataset_from_entry(args):
 
-    if isinstance(args.results_dataset, dict):
-        df_dataset = pd.DataFrame(args.results_dataset)
-    elif isinstance(args.results_dataset, str):
-        df_dataset = pd.read_json(args.results_dataset)
-    elif isinstance(args.results_dataset, Dataset): # This does not really read the dataset as HF, since it is passed as str
-        results = load_dataset(args.results_dataset)['train']
-        df_dataset = results.to_pandas()
+    if args.hf_token:
+        print('Logging in...')
+        login(args.hf_token)
+
+    if isinstance(args.results_dataset, str):
+        if args.is_hf_dataset == 'True':
+            results = load_dataset(args.results_dataset)['train']
+            df_dataset = results.to_pandas()
+        else:
+            df_dataset = pd.read_json(args.results_dataset)
     else:
         raise TypeError(f'Unexpected dataset format: {args.results_dataset}')       
 

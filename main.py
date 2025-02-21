@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from datasets import load_from_disk, load_dataset
+from datasets import load_from_disk
 import os
 import random
 import json
@@ -28,7 +28,7 @@ def parse_args():
         help="number of samples to test",
     )
     parser.add_argument(
-        "--setting",
+        "--method",
         type=str,
         default="zero-shot",
         help="[few-shot, zero-shot]",
@@ -124,7 +124,7 @@ def evaluate_model(args):
             continue_from = len(results)
         
     else:
-        output_folder = f"outputs/{args.setting}/mode_{args.model}"
+        output_folder = f"outputs/{args.method}/mode_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
         continue_from = 0

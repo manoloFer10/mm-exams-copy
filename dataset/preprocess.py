@@ -49,6 +49,8 @@ def main():
                 return True
             except:
                 return False
+        else:
+            return True
 
     dataset = dataset.filter(check_img)
 
@@ -66,10 +68,22 @@ def main():
             "Algebra",
             "Geometry",
             "Statistics",
+            "Mathematics",
+            "numerical ability",
+            "mathematics",
         },
         "Chemistry": {"Chemistry", "chemistry"},
-        "Biology": {"Biology", "Medicine/Biology"},
-        "Physics": {"Physics", "physics"},
+        "Biology": {
+            "Biology",
+            "Medicine/Biology",
+            "Natural Science",
+            "Life Sciences",
+            "Biophysics",
+            "Ecology and Evolution",
+            "olympiads",
+            "biology",
+        },
+        "Physics": {"Physics", "physics", "Science"},
         "Informatics": {
             "Computer Science",
             "computer science",
@@ -97,65 +111,71 @@ def main():
             "Naval Architecture and Marine Engineering",
             "Architecture and Planning",
             "Petroleum Engineering",
-        },
-        "Olympiads": {"olympiads"},
-        "STEM (General)": {"STEM", "Science"},
-        "Natural Sciences": {
-            "Natural Science",
-            "Life Sciences",
-            "Biophysics",
-            "Ecology and Evolution",
+            "Biotechnology",
+            "Agricultural Engineering",
+            "Instrumentation Engineering",
+            "electronics",
+            "Geology",
+            "Geomatics Engineering",
+            "Amateur Radio",
         },
         # Health Sciences
-        "Medicine": {"Medicine", "Medicine/Physiology", "Medicine/Health"},
-        "Nursing": {"Nursing"},
-        "Health Sciences": {"Health"},
-        # Language and Communication
-        "Ukrainian Language": {"Ukrainian Language and Literature"},
-        "Portuguese Language": {
+        "Medicine": {
+            "Medicine",
+            "Medicine/Physiology",
+            "Medicine/Health",
+            "Nursing",
+        },
+        "Health": {"social_skills", "Health", "STEM"},
+        "Language": {
+            "Ukrainian Language and Literature",
             "Portuguese Language",
             "Portuguese Language, Literature",
             "Portuguese Language, Literature, History",
-        },
-        "English Language": {
             "English",
             "English Language",
             "Reading_comprehension",
             "reading_comprehension",
+            "Arabic Language",
         },
-        "Arabic Language": {"Arabic Language"},
-        "Literature and Linguistics": {
+        # Humanities & Culture
+        "Literature & Linguistics": {
             "Literature",
             "Humanities & Social Sciences - Linguistics",
         },
-        # Social Sciences
         "History": {
             "Indian History",
             "Ukrainian History",
             "History",
             "History and Civics",
         },
-        "Geography": {"Geography"},
+        "Culture": {"Culture", "Art History"},
+        "Religion": {"Islamic Studies", "Christian Studies"},
         "Philosophy": {"Philosophy", "Philosophy and Logic"},
+        # Social & Analytical Sciences
+        "Geography": {"Geography"},
         "Social Sciences": {
-            "Economics",
             "Social Studies 2",
             "Civics",
             "Indian Politics",
             "Political Studies",
-            "Sociology",
-            "Psychology",
-            "Psychology and Sociology",
+            "Demography",
+            "Indian Constitution",
         },
-        # Cognitive Skills / Aptitude
+        "Economics": {"Economics"},
+        "Sociology": {"Sociology", "Psychology", "Psychology and Sociology"},
         "Reasoning": {
             "Reasoning",
             "General Intelligence and Reasoning",
             "Visual Reasoning",
             "Reasoning and General Intelligence",
+            "Mental Ability",
+            "mental ability",
+            "IQ",
+            "reasoning",
+            "Aptitude",
         },
-        "Mental Ability": {"Mental Ability", "mental ability", "IQ"},
-        "Skills": {"drawing aptitude", "Design"},
+        "Design": {"drawing aptitude", "Design"},
         "Driving License": {
             "Driving License",
             "driving licence",
@@ -169,8 +189,6 @@ def main():
             "General Awareness",
             "Current Affairs",
         },
-        "Culture": {"Culture", "Art History"},
-        "Religious Studies": {"Islamic Studies", "Christian Studies"},
     }
 
     general_category_mapping = {
@@ -181,29 +199,27 @@ def main():
             "Physics",
             "Informatics",
             "Engineering",
-            "Natural Sciences",
-            "STEM (General)",
-            "Olympiads",
         },
-        "Health Sciences": {"Medicine", "Nursing", "Health Sciences"},
-        "Language and Communication": {
-            "Ukrainian Language and Literature",
-            "Portuguese Language",
-            "English Language",
-            "Arabic Language",
+        "Health Sciences": {"Medicine", "Health"},
+        "Humanities & Culture": {
+            "Language",
             "Literature & Linguistics",
-        },
-        "Social Sciences": {"History", "Geography", "Philosophy", "Social Sciences"},
-        "Cognitive Skills / Aptitude": {
-            "Reasoning",
-            "Mental Ability",
-            "Skills",
-            "Driving License",
-        },
-        "General Knowledge, Culture and Arts": {
-            "General Knowledge",
+            "History",
+            "Philosophy",
             "Culture",
-            "Religious Studies",
+            "Religion",
+        },
+        "Social Sciences": {
+            "Geography",
+            "Social Sciences",
+            "Economics",
+            "Sociology",
+        },
+        "Reasoning": {"Reasoning"},
+        "Practical Skills & General Knowledge": {
+            "General Knowledge",
+            "Driving License",
+            "Design",
         },
     }
 
@@ -227,6 +243,8 @@ def main():
         )
         example["category_en"] = normalized_category
         example["general_category_en"] = general_category
+        if example["general_category_en"] == "Other / Uncategorized":
+            print(original_category)
         return example
 
     dataset = dataset.map(
@@ -563,7 +581,7 @@ def main():
 
         pickle.dump(stratified_stats, f)
 
-    stratified_dataset.save_to_disk("dataset/stratified_dataset.hf")
+    stratified_dataset.save_to_disk("dataset/stratified_dataset_.hf")
 
 
 if __name__ == "__main__":
