@@ -101,13 +101,14 @@ def initialize_model(
     elif model_name == "deepseekVL2-small":
         model_path = "deepseek-ai/deepseek-vl2-small"
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            Path(model_path) / "processor", local_files_only=True
+            model_path, 
+            local_files_only=True
         )
 
         model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
-            Path(model_path) / "model",
+            model_path,
             trust_remote_code=True,
-            temperature=0.7,
+            temperature=TEMPERATURE,
             device_map="auto",
             torch_dtype=torch.bfloat16,
             local_files_only=True,
