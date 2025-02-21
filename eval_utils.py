@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 
 EVALUATION_STYLES = ["complete", "accuracy", "statistics", "experiments", "plotting"]
 
@@ -191,6 +192,110 @@ LANGUAGES = {
     "zh": "Chinese",
     "zu": "Zulu",
 }
+
+
+def compute_accuracy(results, output_folder):
+    os.makedirs(output_folder, exist_ok=True)
+    keys_to_keep = {
+        "language",
+        "lang",
+        "accuracy",
+        "country",
+        "level",
+        "category_en",
+        "category_original_lang",
+        "image_information",
+        "image_type",
+        "general_category_en",
+        "is_multimodal",
+    }
+
+    with open(results, "r") as f:
+        results = json.load(f)
+
+    # check change of prediction name
+    prediction_field = next(
+        (key for key in results[0].keys() if key.startswith("prediction_by_")),
+        "prediction",
+    )
+    for sample in results:
+        if sample[prediction_field] not in [0, 1, 2, 3]:
+            sample["accuracy"] = None
+        else:
+            sample["accuracy"] = int(
+                sample.get(prediction_field) == sample.get("answer")
+            )
+        sample["lang_code"] = sample.pop("language")
+        sample["language"] = LANGUAGES[sample["lang_code"]]
+        sample["is_multimodal"] = sample["image"] is not None
+
+    filtered_data = [
+        {key: sample[key] for key in keys_to_keep if key in sample}
+        for sample in results
+    ]
+
+    output_file = os.path.join(output_folder, "full_accuracy.json")
+    with open(output_file, "w") as f:
+        json.dump(filtered_data, f, indent=2)
+    print(f"Accuracy saved in {output_file}")
+    return output_file
+
+
+def get_results(results, output_dir, filter_multimodal=""):
+    data = pd.read_json(results)
+    if filter_multimodal == "multimodal":
+        data = data[data["is_multimodal"] == True]
+    elif filter_multimodal == "text-only":
+        data = data[data["is_multimodal"] == False]
+    group_columns = ["language", "category_en", "general_category_en"]
+    results = []
+    grouped = data.groupby(group_columns)
+    results = []
+    for name, group in grouped:
+        none_count = group["accuracy"].isna().sum()
+        valid_count = group["accuracy"].notna().sum()
+        avg_accuracy = group["accuracy"].mean()
+        results.append(
+            {
+                "language": name[0],
+                "category_en": name[1],
+                "general_category_en": name[2],
+                "average_accuracy": avg_accuracy,
+                "valid_samples": valid_count,
+                "none_samples": none_count,
+            }
+        )
+    results_df = pd.DataFrame(results)
+    output_dir = os.path.join(
+        output_dir,
+        f"accuracy_results{'_'+filter_multimodal if filter_multimodal else ''}.csv",
+    )
+    results_df.to_csv(output_dir, index=False)
+    print(f"Analysis saved in {output_dir}")
+    return results_df
+
+    category = "language"
+    summary = (
+        results_df.groupby(category)
+        .apply(
+            lambda x: pd.Series(
+                {
+                    "weighted_avg_accuracy": (
+                        (x["average_accuracy"] * x["valid_samples"]).sum()
+                        / x["valid_samples"].sum()
+                    ),
+                    "valid_percentage": (
+                        x["valid_samples"].sum()
+                        / (x["valid_samples"].sum() + x["none_samples"].sum())
+                    )
+                    * 100,
+                    "total_none_samples": x["none_samples"].sum(),
+                    "total_valid_samples": x["valid_samples"].sum(),
+                }
+            )
+        )
+        .reset_index()
+    )
 
 
 def perform_complete_evaluation(df_dataset, output_folder):

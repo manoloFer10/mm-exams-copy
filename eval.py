@@ -3,7 +3,7 @@
 import argparse
 import pandas as pd
 import os
-from datasets import load_dataset, Dataset
+from datasets import load_dataset, Dataset, load_from_disk
 from huggingface_hub import login
 from eval_utils import (
     EVALUATION_STYLES,
@@ -20,12 +20,10 @@ def parse_args():
     parser.add_argument(
         "--num_samples",
         type=str,
-        default="3",
+        default="all",
         help="number of samples to evaluate",
     )
-    parser.add_argument(
-        "--results_dataset", type=str, required=True, help="dataset name or path"
-    )
+    parser.add_argument("--results", type=str, required=True, help="inference output")
     parser.add_argument(
         "--is_hf_dataset",
         type=str,
@@ -75,19 +73,19 @@ def load_dataset_from_entry(args):
         print("Logging in...")
         login(args.hf_token)
 
-    if isinstance(args.results_dataset, str):
+    if isinstance(args.results, str):
         if args.is_hf_dataset == "True":
-            results = load_dataset(args.results_dataset)["train"]
-            df_dataset = results.to_pandas()
+            results = load_from_disk(args.results)["train"]
+            results_df = results.to_pandas()
         else:
-            df_dataset = pd.read_json(args.results_dataset)
+            results_df = pd.read_json(args.results)
     else:
-        raise TypeError(f"Unexpected dataset format: {args.results_dataset}")
+        raise TypeError(f"Unexpected dataset format: {args.results}")
 
     if args.num_samples != "all":
-        df_dataset = df_dataset.head(int(args.num_samples))
+        results_df = results_df.head(int(args.num_samples))
 
-    return df_dataset
+    return results_df
 
 
 def main():
@@ -95,7 +93,6 @@ def main():
 
     # Load dataset.
     results = load_dataset_from_entry(args)
-
     run_evaluation(results, args.evaluation_style, args.output_folder)
 
 

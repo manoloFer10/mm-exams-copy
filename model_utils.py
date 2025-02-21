@@ -14,8 +14,8 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 
-# from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-# from deepseek_vl.utils.io import load_pil_images
+from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+from deepseek_vl.utils.io import load_pil_images
 
 from pathlib import Path
 from PIL import Image
@@ -25,7 +25,12 @@ from torch.cuda.amp import autocast
 
 # from llava.model.builder import load_pretrained_model
 
-from model_zoo import create_qwen_prompt, create_molmo_prompt, create_pangea_prompt
+from model_zoo import (
+    create_qwen_prompt,
+    create_molmo_prompt,
+    create_pangea_prompt,
+    create_deepseek_prompt,
+)
 
 
 TEMPERATURE = 0.7
@@ -39,7 +44,7 @@ SUPPORTED_MODELS = [
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
     "molmo",
-    "deepseekVL2-small",
+    "deepseek",
 ]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
@@ -98,8 +103,7 @@ def initialize_model(
             local_files_only=True,
         )
 
-    elif model_name == "deepseekVL2-small":
-        model_path = "deepseek-ai/deepseek-vl2-small"
+    elif model_name == "deepseek":
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
             model_path, local_files_only=True
         )
@@ -183,7 +187,7 @@ def query_model(
         answer = query_qwen2(model, processor, prompt, images, device)
     elif model_name == "pangea":
         answer = query_pangea(model, processor, prompt, images, device)
-    elif model_name == "deepseekVL2-small":
+    elif model_name == "deepseek":
         answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
         answer = query_molmo(model, processor, prompt, images, max_tokens)
@@ -381,6 +385,8 @@ def generate_prompt(
         return create_molmo_prompt(question, method, few_shot_samples)
     elif model_name == "pangea":
         return create_pangea_prompt(question, method, few_shot_samples)
+    elif model_name == "deepseek":
+        return create_deepseek_prompt(question, method, few_shot_samples)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -398,7 +404,7 @@ def generate_prompt(
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == "deepseekVL2-small":
+    elif model_name == "deepseek":
         return parse_deepseek_inputs(
             question["question"],
             question["image"],

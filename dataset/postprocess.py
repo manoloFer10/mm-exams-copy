@@ -1,3 +1,4 @@
+import argparse
 import json
 import re
 
@@ -20,29 +21,49 @@ def format_other_answers(sample):
     return sample
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--results_path",
+        type=str,
+        required=True,
+        help="path to raw inference",
+    )
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        default=None,
+        help="path to formatted inference",
+    )
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    with open("./results/few-shot/qwen25-raw.json", "r", encoding="utf-8") as file:
+    args = parse_args()
+    with open(args.results_path, "r", encoding="utf-8") as file:
         data = json.load(file)
     print(f"Number of inference output: {len(data)}")
+    prediction_field = next(
+        (key for key in data[0].keys() if key.startswith("prediction_by_")),
+        "prediction",
+    )
 
     def get_missing_answers(data):
         missing_answers = []
         for sample in data:
-            if sample["prediction_by_qwen2.5-7b"] not in [0, 1, 2, 3]:
+            if sample[prediction_field] not in [0, 1, 2, 3]:
                 missing_answers.append(sample)
         return missing_answers
 
     missing = get_missing_answers(data)
     print(f"Number of missing answers: {len(missing)}")
-    import code
 
-    code.interact(local=locals())
-
-    def format_answers(data):
+    def format_answers_qwen(data):
         formatted_data = []
         for sample in data:
-            original = sample["prediction_by_molmo"]
-            answer = sample["reasoning_by_molmo"]
+            original = sample[prediction_field]
+            answer = sample["reasoning"]
             if original not in [0, 1, 2, 3]:
                 if answer:
                     # pattern = f"([ABCD])"
@@ -57,15 +78,60 @@ def main():
             formatted_data.append(sample)
         return formatted_data
 
-    formatted_data = format_answers(data)
+    def format_answers_pangea(data):
+        formatted_data = []
+        for sample in data:
+            original = sample[prediction_field]
+            answer = sample["reasoning"]
+            if original not in [0, 1, 2, 3]:
+                if answer:
+                    pattern = r"assistant <ANSWER>\s*([ABCD])\s*</ANSWER>"
+                    match = re.search(pattern, answer)
+                    if not match:
+                        match = re.search(
+                            r"assistant\s+([ABCD])", answer, re.IGNORECASE
+                        )
+                    if not match:
+                        pattern = r"correct answer is <ANSWER>\s*([ABCD])\s*</ANSWER>"
+                        match = re.search(pattern, answer)
+                    if not match:
+                        pattern = r"correct answer is\s*([ABCD])"
+                        match = re.search(pattern, answer)
+                    if not match:
+                        pattern = r"correct answer is option\s*([ABCD])"
+                        match = re.search(pattern, answer)
+                    if not match:
+                        match = re.search(r"assistant\s*<\s*([ABCD])\s*", answer)
+                    if not match:
+                        match = re.search(r"\n\n\s*([ABCD])", answer)
+                    if not match:
+                        match = re.search(r"\n\n<ANSWER>\s*([ABCD])", answer)
+                    if not match:
+                        match = re.search(r"is option\s*([ABCD])", answer)
+                    if match:
+                        letter = match.group(1).upper()
+                        sample[prediction_field] = ord(letter) - ord("A")
+                    if not match:
+                        matches = re.findall(r"<ANSWER>\s*([ABCD])\s*</ANSWER>", answer)
+                        if len(matches) >= 4:
+                            letter = matches[3].upper()
+                            sample[prediction_field] = ord(letter) - ord("A")
+
+            formatted_data.append(sample)
+        return formatted_data
+
+    formatted_data = format_answers_pangea(data)
     assert len(formatted_data) == len(data)
     missing = get_missing_answers(formatted_data)
-    print(f"Number of missing after answers formatting: {len(missing)}")
-    # save_path = "./results/zero-shot/molmo_formatted.json"
-    # with open(save_path, "w") as f:
-    #    json.dump(formatted_data, f, indent=2)
+    import code
 
-    # print(f"Formatted data saved to: {save_path}")
+    code.interact(local=locals())
+    print(f"Number of missing after answers formatting: {len(missing)}")
+    if args.save_path is not None:
+        with open(args.save_path, "w") as f:
+            json.dump(formatted_data, f, indent=2)
+
+        print(f"Formatted data saved to: {args.save_path}")
 
 
 if __name__ == "__main__":

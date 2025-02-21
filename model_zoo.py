@@ -116,6 +116,11 @@ def create_qwen_prompt(question, method, few_shot_samples):
     return message, images
 
 
+# Deep-seek
+def create_deepseek_prompt(question, method, few_shot_samples):
+    pass
+
+
 # GPT
 
 # Gemini
