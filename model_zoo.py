@@ -118,7 +118,26 @@ def create_qwen_prompt(question, method, few_shot_samples):
 
 # Deep-seek
 def create_deepseek_prompt(question, method, few_shot_samples):
-    pass
+    content = []
+    lang = question["language"]
+    prompt = []
+    if question["image"] is not None:
+        prompt.append("<image>\n")
+        images = question["image"]
+    else:
+        images = None
+    prompt.append(
+        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append("\nAnswer:")
+    message = [
+        {"role": "<|User|>", "content": "".join(prompt), "images": images},
+        {"role": "<|Assistant|>", "content": ""},
+    ]
+    return [INSTRUCTIONS_COT[lang], message], None
 
 
 # GPT

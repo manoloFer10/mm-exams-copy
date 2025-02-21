@@ -14,8 +14,8 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 
-from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-from deepseek_vl.utils.io import load_pil_images
+from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+from deepseek_vl2.utils.io import load_pil_images
 
 from pathlib import Path
 from PIL import Image
@@ -111,7 +111,7 @@ def initialize_model(
         model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
             model_path,
             temperature=0.7,
-            device_map="auto",
+            device_map=device,
             torch_dtype=torch.bfloat16,
             local_files_only=True,
             trust_remote_code=True,
@@ -121,7 +121,7 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(
             model_path,
             torch_dtype="auto",
-            device_map="auto",
+            device_map=device,
             local_files_only=True,
             trust_remote_code=True,
         )
@@ -404,14 +404,6 @@ def generate_prompt(
     elif model_name == "maya":
         # Add Maya-specific parsing
         raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == "deepseek":
-        return parse_deepseek_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            instruction,
-            method,
-        )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],
@@ -596,43 +588,6 @@ def parse_anthropic_input(
         raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
 
     return messages, None  # image paths not expected for openai client.
-
-
-def parse_deepseek_inputs(
-    question_text, question_image, options_list, instruction, few_shot_setting
-):
-    images = [question_image]
-    for option in options_list:
-        if ".png" in option:
-            images.append(option)
-
-    user_msg = "Question: " + question_text + "\n\n"
-
-    if question_image:
-        user_msg += "<image>"
-
-    options = "Options:\n"
-    for i, option in enumerate(options_list):
-        if ".png" in option:
-            options += chr(65 + i) + ". " + "<image>" + "\n"
-        else:
-            options += chr(65 + i) + ". " + option + "\n"
-
-    user_msg += options + "\nAnswer:"
-
-    conversation = [
-        {
-            "role": "<|User|>",
-            "content": user_msg,
-            "images": images,
-        },
-        {"role": "<|Assistant|>", "content": ""},
-    ]
-
-    return [
-        instruction,
-        conversation,
-    ], None  # image paths not expected for deepseek. Processing of images is within prompt.
 
 
 def format_answer(answer: str):
