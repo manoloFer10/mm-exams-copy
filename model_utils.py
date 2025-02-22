@@ -211,6 +211,7 @@ def query_model(
 
 
 def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
+
     pil_images = load_pil_images(prompt[1])
     prepare_inputs = processor(
         system_prompt=prompt[0],

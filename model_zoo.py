@@ -123,7 +123,7 @@ def create_deepseek_prompt(question, method, few_shot_samples):
     prompt = []
     if question["image"] is not None:
         prompt.append("<image>\n")
-        images = question["image"]
+        images = [question["image"]]
     else:
         images = None
     prompt.append(
