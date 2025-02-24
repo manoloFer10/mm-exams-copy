@@ -82,10 +82,24 @@ def map_image_path(example):
 
 def filter_ready(dataset, results):
     hf_questions = set(
-        (example["question"], tuple(example["options"])) for example in dataset
+        (
+            example["question"],
+            example["file_name"],
+            example["image_png"],
+            example["source"],
+            example["original_question_num"],
+        )
+        for example in dataset
     )
     json_questions = set(
-        (example["question"], tuple(example["options"])) for example in results
+        (
+            example["question"],
+            example["file_name"],
+            example["image_png"],
+            example["source"],
+            example["original_question_num"],
+        )
+        for example in results
     )
     # Find duplicates
     common_questions = hf_questions.intersection(json_questions)
@@ -94,7 +108,14 @@ def filter_ready(dataset, results):
     filtered_data = [
         example
         for example in dataset
-        if (example["question"], tuple(example["options"])) not in common_questions
+        if (
+            example["question"],
+            example["file_name"],
+            example["image_png"],
+            example["source"],
+            example["original_question_num"],
+        )
+        not in common_questions
     ]
 
     # Convert back to Hugging Face dataset
@@ -134,7 +155,14 @@ def evaluate_model(args):
         with open(output_path, "r") as f:
             results = json.load(f)
             unique_results = set(
-                (example["question"], tuple(example["options"])) for example in results
+                (
+                    example["question"],
+                    example["file_name"],
+                    example["image_png"],
+                    example["source"],
+                    example["original_question_num"],
+                )
+                for example in results
             )
             results = [
                 example

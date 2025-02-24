@@ -172,6 +172,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]
     prompt = [instruction[lang]]
+    lang_keyword = keywords["lang"]
     if question["image"] is not None:
         content.append({"type": "image"})
         images = [question["image"]]
@@ -183,23 +184,23 @@ def create_qwen_prompt(question, method, few_shot_samples):
         prompt.append(f"\n{few_shot_instruction['lang']}\n")
         for q in few_shot:
             prompt.append(
-                f"\n{keywords['question']}: {q['question']} \n{keywords['options']}: \n"
+                f"\n{lang_keyword['question']}: {q['question']} \n{lang_keyword['options']}: \n"
             )
             for t, option in enumerate(q["options"]):
                 index = f"{chr(65+t)}. "
                 prompt.append(f"{index}) {option}\n")
             prompt.append(
-                f"\n{keywords['answer']}: <ANSWER> {chr(65+q['answer'])} </ANSWER>\n"
+                f"\n{lang_keyword['answer']}: <ANSWER> {chr(65+q['answer'])} </ANSWER>\n"
             )
             prompt.append("\n---\n")
 
     prompt.append(
-        f"\n{keywords['question']}: {question['question']} \n{keywords['options']}: \n"
+        f"\n{lang_keyword['question']}: {question['question']} \n{lang_keyword['options']}: \n"
     )
     for t, option in enumerate(question["options"]):
         index = f"{chr(65+t)}. "
         prompt.append(f"{index}) {option}\n")
-    prompt.append(f"\n{keywords['answer']}:")
+    prompt.append(f"\n{lang_keyword['answer']}:")
     content.append({"type": "text", "text": "".join(prompt)})
     message = [
         {"role": "system", "content": INSTRUCTIONS_COT[lang]},
@@ -208,7 +209,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
     return message, images
 
 
-def create_qwen_newprompt(question, method, few_shot_samples):
+def create_qwen_oldprompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]
     prompt = []
