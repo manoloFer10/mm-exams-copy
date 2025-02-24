@@ -142,7 +142,7 @@ def evaluate_model(args):
                 if (example["question"], tuple(example["options"])) in unique_results
             ]
     else:
-        output_folder = f"outputs/{args.method}/{args.model}"
+        output_folder = f"outputs/{args.method}/model_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
         output_path = os.path.join(output_folder, f"results.json")
         results = []
