@@ -63,7 +63,16 @@ def perform_metrics(df_dataset, output_folder):
     #     output_file = output_folder +'/' + file_name
     #     accuracies.to_csv(output_file)
 
-        
+    # Answer distribution
+
+    if 'answer' in df_dataset.columns:
+        answer_stats = calculate_answer_distribution(df_dataset, 'answer')
+        answer_stats.columns = ['correct answer counts', 'proportion correct answer']
+
+        distributions = [calculate_answer_distribution(df_dataset, col) for col in model_names]
+        answer_stats = pd.concat([answer_stats] + distributions, axis=1)
+        answer_stats.to_csv(output_folder +"/answer_balance.csv", index=True)
+    
 
     print(f"Metrics results saved to: {output_folder}")
 
@@ -122,14 +131,26 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
     output_file = os.path.join(output_folder, f"metrics_across_{group}.csv")
     results_df.to_csv(output_file)
 
+def calculate_answer_distribution(df, column_name):
+    """Calculate the distribution and proportion of answers in a given column."""
+    distribution = df[column_name].value_counts().reset_index()
+    distribution.columns = ['answer', f'counts {column_name}']
+    distribution = distribution.set_index('answer')
+    distribution[f'proportion {column_name}'] = distribution[f'counts {column_name}'] / distribution[f'counts {column_name}'].sum()
+    distribution = distribution.round(2).astype(str)
+    return distribution
+
 def perform_descriptive_statistics(df_dataset, output_folder):
     code2lang = LANGUAGES
 
     output_folder = output_folder +'/statistics'
     os.makedirs(output_folder, exist_ok=True)
 
+    if 'language' in df_dataset.columns:
+        df_dataset['language'] = df_dataset['language'].map(code2lang)
+
     # Frequency Tables
-    categorical_fields = ['language', 'country', 'level', 'category_en', 'image_type', 'image_information'] # Manu: excluded 'category_original_lang' because it will be endless.
+    categorical_fields = ['language', 'country', 'level', 'category_en', 'general_category_en', 'image_type', 'image_information'] 
     for field in categorical_fields:
         if field in df_dataset.columns:
             freq_table = df_dataset[field].value_counts().reset_index()
@@ -148,36 +169,13 @@ def perform_descriptive_statistics(df_dataset, output_folder):
     #         length_stats = df_dataset[field].dropna().apply(len).describe()
     #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
-
-    # Answer distribution
-    if 'answer' in df_dataset.columns:
-        answer_stats = calculate_distribution(df_dataset, 'answer')
-        answer_stats.columns = ['correct answer counts', 'proportion correct answer']
-
-        model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
-        distributions = [calculate_distribution(df_dataset, col) for col in model_columns]
-        answer_stats = pd.concat([answer_stats] + distributions, axis=1)
-        answer_stats.to_csv(output_folder +"/answer_balance.csv", index=True)
-    
-
-    # image_type, image_information, level and category_en distributions per language
-    get_distribution_table(df_dataset, 'category_en', code2lang, output_folder)
-    get_distribution_table(df_dataset, 'image_type', code2lang, output_folder)
-    get_distribution_table(df_dataset, 'level', code2lang, output_folder)
-    get_distribution_table(df_dataset, 'image_information', code2lang, output_folder)
+    # image_type, image_information, level, general_category_en and category_en distributions per language
+    for field in categorical_fields[1:]:
+        get_distribution_table_per_language(df_dataset, field, code2lang, output_folder)
 
     print(f"Overall statistics saved to folder: {output_folder}")
 
-def calculate_distribution(df, column_name):
-    """Calculate the distribution and proportion of answers in a given column."""
-    distribution = df[column_name].value_counts().reset_index()
-    distribution.columns = ['answer', f'counts {column_name}']
-    distribution = distribution.set_index('answer')
-    distribution[f'proportion {column_name}'] = distribution[f'counts {column_name}'] / distribution[f'counts {column_name}'].sum()
-    distribution = distribution.round(2).astype(str)
-    return distribution
-
-def get_distribution_table(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
+def get_distribution_table_per_language(df: pd.DataFrame, field: str, code2lang: dict, output_folder: str):
 
     #useful for image fields
     df = df[df[field].notna() & (df[field] != '')]
@@ -238,50 +236,48 @@ def perform_plots(df_dataset, output_folder):
 
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
-    # Read and prepare data
+    # Read data
     df = pd.read_csv(data_path, index_col=0)
-    df = df[df.index != 'Overall']  # Remove overall score
+    df = df[df.index != 'Overall']
     
-    # Extract values and models
-    group_values = df.index.tolist()
     models = [col for col in df.columns if col.endswith('accuracy')]
     model_names = [col.replace('_accuracy', '') for col in models]
-    df.rename(columns=dict(zip(df, model_names)), inplace=True)
+    df.rename(columns=dict(zip(models, model_names)), inplace=True)
+
+    group_values = df.index.tolist()
     num_vars = len(group_values)
     
-    # Calculate angles for radar chart
-    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-    angles += angles[:1]  # Close the circle
+    # Angles
+    angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]
     
-    # Create figure and polar axis
     fig, ax = plt.subplots(figsize=(10,10), subplot_kw={'projection': 'polar'})
-    ax.set_theta_direction(-1)  
-    ax.set_theta_offset(np.pi/2)  
+    ax.set_theta_offset(np.pi/2)
+    ax.set_theta_direction(-1)
+    
+    # Now radial axis goes 0–100
     ax.set_rlim(0, 1)
     ax.set_rticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
-    ax.set_yticklabels(['0%', '20%', '40%', '60%', '80%', '100%'], 
-                      fontsize=10, color='grey')
-    ax.grid(color='grey', linestyle='--', linewidth=0.5)
+    ax.set_yticklabels(['0%', '20%', '40%', '60%', '80%', '100%'],
+                       fontsize=10, color='grey')
     
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(group_values, fontsize=14, color='black')
-    colors = plt.cm.tab10.colors
+    ax.grid(color='grey', linestyle='--', linewidth=0.5)
     
-    # Plot each model's data
+    colors = plt.cm.tab10.colors
     for i, model in enumerate(model_names):
         values = df[model].tolist()
-        values += values[:1]  
+        values += values[:1]
         color = colors[i % len(colors)]
         
-        ax.plot(angles, values, color=color, linewidth=2, 
-               marker='o', markersize=4, label=model)
-        ax.fill(angles, values, color=color, alpha=0.5)
+        ax.plot(angles, values, color=color, linewidth=2,
+                marker='o', markersize=4, label=model)
+        ax.fill(angles, values, color=color, alpha=0.2)
     
-    # Configure legend
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15),
-             ncol=3, fontsize=14, frameon=False)
+              ncol=3, fontsize=14, frameon=False)
     
-    # Save and close figure
     plt.tight_layout()
     output_path = f"{output_folder}/accuracy_{group}_spider.png"
     plt.savefig(output_path, bbox_inches='tight')
