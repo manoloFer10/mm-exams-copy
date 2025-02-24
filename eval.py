@@ -8,7 +8,7 @@ from huggingface_hub import login
 from eval_utils import (
     EVALUATION_STYLES,
     perform_complete_evaluation,
-    perform_accuracy_evaluation,
+    perform_metrics,
     perform_descriptive_statistics,
     perform_experiments,
     perform_plots
@@ -62,8 +62,8 @@ def run_evaluation(results, style, output_folder):
 
     if style == 'complete':
         perform_complete_evaluation(results, output_folder)
-    if style == 'accuracy':
-        perform_accuracy_evaluation(results, output_folder)
+    if style == 'metrics':
+        perform_metrics(results, output_folder)
     if style == 'statistics':
         perform_descriptive_statistics(results, output_folder)
     if style == 'experiments':

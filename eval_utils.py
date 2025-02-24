@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-EVALUATION_STYLES = ['complete', 'accuracy', 'statistics', 'experiments', 'plotting']
+EVALUATION_STYLES = ['complete', 'metrics', 'statistics', 'experiments', 'plotting']
 
 LANGUAGES = {
   "ar": "Arabic",
@@ -28,15 +28,15 @@ LANGUAGES = {
 
 def perform_complete_evaluation(df_dataset, output_folder):
 
-    perform_accuracy_evaluation(df_dataset, output_folder)
+    perform_metrics(df_dataset, output_folder)
     perform_descriptive_statistics(df_dataset, output_folder)
     perform_plots(df_dataset, output_folder)
     print('not implemented yet: perform_experiments(df_dataset)')
 
-def perform_accuracy_evaluation(df_dataset, output_folder):
+def perform_metrics(df_dataset, output_folder):
     code2lang = LANGUAGES
 
-    output_folder = output_folder +'/results_accuracy'
+    output_folder = output_folder +'/metrics'
     os.makedirs(output_folder, exist_ok=True)
 
     if 'language' in df_dataset.columns:
@@ -46,51 +46,81 @@ def perform_accuracy_evaluation(df_dataset, output_folder):
     model_names = [col.replace('prediction_by_', '') for col in model_columns]
     df_dataset.rename(columns=dict(zip(model_columns, model_names)), inplace=True)
 
-
-    # Group by language and calculate accuracies
-    group_by_and_score(df_dataset, 'language', model_names, output_folder)
-    # Group by country and calculate accuracies
-    group_by_and_score(df_dataset, 'country', model_names, output_folder)
-    # Group by level and calculate accuracies
-    group_by_and_score(df_dataset, 'level', model_names, output_folder)
-    # Group by category_en and calculate accuracies
-    group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
-
-    # Group by level and calculate accuracies
-    group_by_and_score(df_dataset, 'level', model_names, output_folder)
-
-    # Group by category_en and calculate accuracies
-    group_by_and_score(df_dataset, 'category_en', model_names, output_folder)
+    # Group by different attributes and compute metrics.
+    for group in ['language', 'country', 'level', 'category_en', 'general_category_en']:
+        group_by_and_score(df_dataset, group, model_names, output_folder)
 
     # Calculate accuracies by language and category for each model.
-    for model in model_names:
-        accuracy_df = df_dataset[model] == df_dataset['answer']
+    # for model in model_names:
+    #     accuracy_df = df_dataset[model] == df_dataset['answer']
 
-        accuracies = (
-            accuracy_df.groupby([df_dataset['language'], df_dataset['category_en']])
-            .mean()
-            .unstack(fill_value=0) 
-        )
-        file_name = model + "_accuracy_language&category.csv"
-        output_file = output_folder +'/' + file_name
-        accuracies.to_csv(output_file)
+    #     accuracies = (
+    #         accuracy_df.groupby([df_dataset['language'], df_dataset['category_en']])
+    #         .mean()
+    #         .unstack(fill_value=0) 
+    #     )
+    #     file_name = model + "_accuracy_language&category.csv"
+    #     output_file = output_folder +'/' + file_name
+    #     accuracies.to_csv(output_file)
 
         
 
-    print(f"Accuracy results saved to: {output_file}")
+    print(f"Metrics results saved to: {output_folder}")
 
+    
 def group_by_and_score(df_dataset, group, model_names, output_folder):
     
-    #Group and calculate accuracy
-    accuracy_df = df_dataset[model_names].eq(df_dataset['answer'], axis=0)
-    accuracies_by_lang  = accuracy_df.groupby(df_dataset[group]).mean()
-    overall_accuracies = accuracy_df.mean()
-    accuracies_by_lang.loc['Overall'] = overall_accuracies
-    
-    #Save
-    file_name = "/accuracy_across_" + group + ".csv"
-    output_file = output_folder+ file_name
-    accuracies_by_lang.to_csv(output_file)
+    VALID_VALUES = {0, 1, 2, 3}
+    results = {}
+
+    # Group by the specified column.
+    for grp, subset in df_dataset.groupby(group):
+        metrics = {}
+        total = len(subset)
+        for model in model_names:
+            # Create a boolean mask for valid predictions.
+            valid_mask = subset[model].isin(VALID_VALUES)
+            valid_count = valid_mask.sum()
+            error_count = total - valid_count
+            
+            # Calculate accuracy only on valid predictions.
+            if valid_count > 0:
+                correct_count = (subset.loc[valid_mask, model] == subset.loc[valid_mask, 'answer']).sum()
+                accuracy = round(correct_count / valid_count, 4)
+            else:
+                accuracy = np.nan  # or 0 if you prefer
+
+            # Error rate: fraction of predictions that are invalid.
+            error_rate = round(error_count / total, 4)
+
+            # Save metrics with descriptive column names.
+            metrics[f'{model}_accuracy'] = accuracy
+            metrics[f'{model}_error_rate'] = error_rate
+            metrics[f'{model}_valid_answers'] = valid_count
+        results[grp] = metrics
+
+    # Also compute overall metrics (across the entire dataset).
+    overall_metrics = {}
+    total_overall = len(df_dataset)
+    for model in model_names:
+        valid_mask = df_dataset[model].isin(VALID_VALUES)
+        valid_count = valid_mask.sum()
+        error_count = total_overall - valid_count
+        if valid_count > 0:
+            correct_count = (df_dataset.loc[valid_mask, model] == df_dataset.loc[valid_mask, 'answer']).sum()
+            accuracy = round(correct_count / valid_count, 4)
+        else:
+            accuracy = np.nan
+        error_rate = round(error_count / total_overall, 4)
+        overall_metrics[f'{model}_accuracy'] = accuracy
+        overall_metrics[f'{model}_error_rate'] = error_rate
+        overall_metrics[f'{model}_valid_answers'] = valid_count
+    results['Overall'] = overall_metrics
+
+    # Convert the results to a DataFrame and save.
+    results_df = pd.DataFrame(results).T  # transpose so rows are groups.
+    output_file = os.path.join(output_folder, f"metrics_across_{group}.csv")
+    results_df.to_csv(output_file)
 
 def perform_descriptive_statistics(df_dataset, output_folder):
     code2lang = LANGUAGES
@@ -174,7 +204,7 @@ def perform_experiments(df_dataset):
 def image_blindess_experiment(df_dataset):
     #Just filter data by 'useful' and run accuracy eval
     image_blindness_dataset = df_dataset[df_dataset['image_information'] == 'useful']
-    perform_accuracy_evaluation(image_blindness_dataset, 
+    perform_metrics(image_blindness_dataset, 
                                 output_folder='eval_results/experiments/image_blidness',
                                 file_name = 'image_blidness_results.csv')
     
@@ -184,9 +214,9 @@ def perform_plots(df_dataset, output_folder):
     os.makedirs(output_folder, exist_ok=True)
 
     #Spider graph; model accuracy by lang
-    if os.path.exists(f'{origin_folder}/results_accuracy'):
-        generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_language.csv', 'language', output_folder)
-        generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
+    if os.path.exists(f'{origin_folder}/metrics'):
+        generate_spidergraph(f'{origin_folder}/metrics/metrics_across_language.csv', 'language', output_folder)
+        #generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
     else:
         print('No accuracy results folder detected... passing to statistics plots.')
 
@@ -199,6 +229,7 @@ def perform_plots(df_dataset, output_folder):
         plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
         plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
         plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+
     else:
         print('No statistics results folder detected...')
 
@@ -208,12 +239,14 @@ def perform_plots(df_dataset, output_folder):
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
     # Read and prepare data
-    df = pd.read_csv(data_path)
-    df = df[df[group] != 'Overall']  # Remove overall score
+    df = pd.read_csv(data_path, index_col=0)
+    df = df[df.index != 'Overall']  # Remove overall score
     
     # Extract values and models
-    group_values = df[group].tolist()
-    models = [col for col in df.columns if col != group]
+    group_values = df.index.tolist()
+    models = [col for col in df.columns if col.endswith('accuracy')]
+    model_names = [col.replace('_accuracy', '') for col in models]
+    df.rename(columns=dict(zip(df, model_names)), inplace=True)
     num_vars = len(group_values)
     
     # Calculate angles for radar chart
@@ -221,7 +254,7 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     angles += angles[:1]  # Close the circle
     
     # Create figure and polar axis
-    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
+    fig, ax = plt.subplots(figsize=(10,10), subplot_kw={'projection': 'polar'})
     ax.set_theta_direction(-1)  
     ax.set_theta_offset(np.pi/2)  
     ax.set_rlim(0, 1)
@@ -235,7 +268,7 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     colors = plt.cm.tab10.colors
     
     # Plot each model's data
-    for i, model in enumerate(models):
+    for i, model in enumerate(model_names):
         values = df[model].tolist()
         values += values[:1]  
         color = colors[i % len(colors)]
@@ -246,7 +279,7 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     
     # Configure legend
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15),
-             ncol=len(models), fontsize=14, frameon=False)
+             ncol=3, fontsize=14, frameon=False)
     
     # Save and close figure
     plt.tight_layout()
@@ -263,11 +296,11 @@ def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
     Should change this function to pick values from a csv generated by perform_descriptive_statistics
     """
     # Ensure required columns exist
-    if not {'language', 'image_png'}.issubset(df.columns):
-        raise ValueError("The JSON file must contain 'language' and 'image_png' columns.")
+    if not {'language', 'image'}.issubset(df.columns):
+        raise ValueError("The JSON file must contain 'language' and 'image' columns.")
     
     df['language'] = df['language'].apply(lambda code: LANGUAGES.get(code, code))
-    df['has_image'] = df['image_png'].notnull().map({True: 'Multimodal', False: 'Text Only'})
+    df['has_image'] = df['image'].notnull().map({True: 'Multimodal', False: 'Text Only'})
     
     grouped = df.groupby(['language', 'has_image']).size().reset_index(name='count')
     
