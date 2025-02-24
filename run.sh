@@ -28,5 +28,5 @@ export PYTHONPATH=$(pwd)
 python main.py \
 --model deepseek \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-small \
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
 --method zero-shot

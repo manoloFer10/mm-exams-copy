@@ -94,12 +94,14 @@ def initialize_model(
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_path,
             temperature=TEMPERATURE,
+            do_sample=True,
             device_map=device,
             torch_dtype=torch.bfloat16,
             local_files_only=True,
         )
         processor = AutoProcessor.from_pretrained(
             model_path,
+            use_fast=True,
             local_files_only=True,
         )
 
@@ -113,6 +115,7 @@ def initialize_model(
             temperature=0.7,
             device_map=device,
             torch_dtype=torch.bfloat16,
+            do_sample=True,
             local_files_only=True,
             trust_remote_code=True,
         ).eval()
@@ -232,11 +235,10 @@ def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
         max_new_tokens=max_tokens,
         do_sample=True,
         use_cache=True,
+        return_dict_in_generate=True,
+        output_scores=False,
     )
-
-    answer = processor.tokenizer.decode(
-        outputs[0].cpu().tolist(), skip_special_tokens=False
-    )
+    answer = processor.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
     return answer
 
 

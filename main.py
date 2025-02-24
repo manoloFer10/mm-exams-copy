@@ -131,8 +131,6 @@ def load_and_filter_dataset(
     # TODO: ADD OTHER FILTERS
     dataset = load_from_disk(dataset_name)
     dataset = dataset.map(map_image_path)
-    if num_samples is not None:
-        dataset = dataset.select(range(num_samples))
     few_shot_examples = defaultdict(list)
     if method == "few-shot":
         assert len(dataset) == 2
@@ -142,6 +140,8 @@ def load_and_filter_dataset(
         dataset = dataset["test"]
     if results:
         dataset = filter_ready(dataset, results)
+    if num_samples is not None:
+        dataset = dataset.select(range(num_samples))
     return dataset, few_shot_examples
 
 
@@ -177,6 +177,8 @@ def evaluate_model(args):
 
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
+
+    print(model)
 
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(

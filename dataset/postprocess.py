@@ -82,7 +82,7 @@ def main():
         formatted_data = []
         for sample in data:
             original = sample[prediction_field]
-            answer = sample["reasoning_by_pangea"]
+            answer = sample["reasoning"]
             if original not in [0, 1, 2, 3]:
                 if answer:
                     pattern = r"assistant <ANSWER>\s*([ABCD])\s*</ANSWER>"

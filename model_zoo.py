@@ -171,8 +171,8 @@ def create_pangea_prompt(question, method, few_shot_samples):
 def create_qwen_prompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]
-    prompt = [instruction[lang]]
-    lang_keyword = keywords["lang"]
+    prompt = []
+    lang_keyword = keywords[lang]
     if question["image"] is not None:
         content.append({"type": "image"})
         images = [question["image"]]
@@ -181,7 +181,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
 
     if method == "few-shot":
         few_shot = few_shot_samples.get(lang, [])
-        prompt.append(f"\n{few_shot_instruction['lang']}\n")
+        prompt.append(f"\n{few_shot_instruction[lang]}\n")
         for q in few_shot:
             prompt.append(
                 f"\n{lang_keyword['question']}: {q['question']} \n{lang_keyword['options']}: \n"
@@ -194,6 +194,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
             )
             prompt.append("\n---\n")
 
+    prompt.append(f"\n{instruction[lang]}\n")
     prompt.append(
         f"\n{lang_keyword['question']}: {question['question']} \n{lang_keyword['options']}: \n"
     )
@@ -203,7 +204,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
     prompt.append(f"\n{lang_keyword['answer']}:")
     content.append({"type": "text", "text": "".join(prompt)})
     message = [
-        {"role": "system", "content": INSTRUCTIONS_COT[lang]},
+        {"role": "system", "content": system_message[lang]},
         {"role": "user", "content": content},
     ]
     return message, images
@@ -235,7 +236,7 @@ def create_qwen_oldprompt(question, method, few_shot_samples):
     prompt.append("\nAnswer:")
     content.append({"type": "text", "text": "".join(prompt)})
     message = [
-        {"role": "system", "content": system_message[lang]},
+        {"role": "system", "content": INSTRUCTIONS_COT[lang]},
         {"role": "user", "content": content},
     ]
     return message, images
@@ -243,6 +244,32 @@ def create_qwen_oldprompt(question, method, few_shot_samples):
 
 # Deep-seek
 def create_deepseek_prompt(question, method, few_shot_samples):
+    content = []
+    lang = question["language"]
+    lang_keyword = keywords[lang]
+    prompt = []
+    if question["image"] is not None:
+        prompt.append("<image>\n")
+        images = [question["image"]]
+    else:
+        images = None
+
+    prompt.append(f"\n{instruction[lang]}\n")
+    prompt.append(
+        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append(f"\n{lang_keyword['answer']}:")
+    message = [
+        {"role": "<|User|>", "content": "".join(prompt), "images": images},
+        {"role": "<|Assistant|>", "content": ""},
+    ]
+    return [system_message[lang], message], None
+
+
+def create_deepseek_old_prompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]
     prompt = []
