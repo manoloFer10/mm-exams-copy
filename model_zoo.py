@@ -254,6 +254,21 @@ def create_deepseek_prompt(question, method, few_shot_samples):
     else:
         images = None
 
+    if method == "few-shot":
+        few_shot = few_shot_samples.get(lang, [])
+        prompt.append(f"\n{few_shot_instruction[lang]}\n")
+        for q in few_shot:
+            prompt.append(
+                f"\n{lang_keyword['question']}: {q['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
+            )
+            for t, option in enumerate(q["options"]):
+                index = f"{chr(65+t)}. "
+                prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+            prompt.append(
+                f"\n{lang_keyword['answer']}: <ANSWER> {chr(65+q['answer'])} </ANSWER>\n"
+            )
+            prompt.append("\n---\n")
+
     prompt.append(f"\n{instruction[lang]}\n")
     prompt.append(
         f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
