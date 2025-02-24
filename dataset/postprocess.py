@@ -82,7 +82,7 @@ def main():
         formatted_data = []
         for sample in data:
             original = sample[prediction_field]
-            answer = sample["reasoning"]
+            answer = sample["reasoning_by_pangea"]
             if original not in [0, 1, 2, 3]:
                 if answer:
                     pattern = r"assistant <ANSWER>\s*([ABCD])\s*</ANSWER>"
@@ -108,9 +108,18 @@ def main():
                         match = re.search(r"\n\n<ANSWER>\s*([ABCD])", answer)
                     if not match:
                         match = re.search(r"is option\s*([ABCD])", answer)
+                    if not match:
+                        match = re.search(r"answer is:\s*([ABCD])", answer)
+                    if not match:
+                        match = re.search(r"<ANSWER>\s*([ABCD])\s*</ANSWER>", answer)
+                    if not match:
+                        match = re.search(r"[Oo]ption\s*\(\s*([ABCD])\s*", answer)
                     if match:
-                        letter = match.group(1).upper()
-                        sample[prediction_field] = ord(letter) - ord("A")
+                        try:
+                            letter = match.group(1).upper()
+                            sample[prediction_field] = ord(letter) - ord("A")
+                        except:
+                            print(match)
                     if not match:
                         matches = re.findall(r"<ANSWER>\s*([ABCD])\s*</ANSWER>", answer)
                         if len(matches) >= 4:
@@ -123,10 +132,10 @@ def main():
     formatted_data = format_answers_pangea(data)
     assert len(formatted_data) == len(data)
     missing = get_missing_answers(formatted_data)
+    print(f"Number of missing after answers formatting: {len(missing)}")
     import code
 
     code.interact(local=locals())
-    print(f"Number of missing after answers formatting: {len(missing)}")
     if args.save_path is not None:
         with open(args.save_path, "w") as f:
             json.dump(formatted_data, f, indent=2)

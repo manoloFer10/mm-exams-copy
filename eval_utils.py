@@ -284,6 +284,11 @@ def get_results(results, output_dir, filter_multimodal=""):
                         (x["average_accuracy"] * x["valid_samples"]).sum()
                         / x["valid_samples"].sum()
                     ),
+                    "error_rate": 1
+                    - (
+                        (x["average_accuracy"] * x["valid_samples"]).sum()
+                        / x["valid_samples"].sum()
+                    ),
                     "valid_percentage": (
                         x["valid_samples"].sum()
                         / (x["valid_samples"].sum() + x["none_samples"].sum())

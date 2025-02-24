@@ -150,9 +150,6 @@ def evaluate_model(args):
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
 
-    temperature = TEMPERATURE
-    max_tokens = MAX_TOKENS
-
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(
         args.dataset,
@@ -185,8 +182,8 @@ def evaluate_model(args):
             processor,
             prompt,
             image_paths,
-            temperature=temperature,
-            max_tokens=max_tokens,
+            temperature=TEMPERATURE,
+            max_tokens=MAX_TOKENS,
         )
         question["prediction"] = prediction
         question["reasoning"] = reasoning
