@@ -39,6 +39,27 @@ def parse_args():
     return args
 
 
+def recategorize(dataset, category_map, category):
+    with open(category_map, "r") as file:
+        mapping = json.load(file)
+
+    level_mapping = mapping.get(category, {})
+    reverse_mapping = {}
+    for new_category, old_categories in level_mapping.items():
+        for old_category in old_categories:
+            reverse_mapping[old_category] = new_category
+
+    recategorized_dataset = []
+    for item in dataset:
+        original_category = item.get(category, "").strip()
+        new_category = reverse_mapping.get(original_category, original_category)
+        recategorized_item = item.copy()
+        recategorized_item[category] = new_category
+        recategorized_dataset.append(recategorized_item)
+
+    return recategorized_dataset
+
+
 def main():
     args = parse_args()
     with open(args.results_path, "r", encoding="utf-8") as file:
