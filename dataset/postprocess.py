@@ -80,7 +80,7 @@ def main():
     missing = get_missing_answers(data)
     print(f"Number of missing answers: {len(missing)}")
 
-    def format_answers_qwen(data):
+    def format_answers_molmo(data):
         formatted_data = []
         for sample in data:
             original = sample[prediction_field]
@@ -93,9 +93,9 @@ def main():
                     if match:
                         if match.group(1):
                             letter = match.group(1).upper()
-                            sample["prediction_by_molmo"] = ord(letter) - ord("A")
+                            sample["prediction"] = ord(letter) - ord("A")
                         else:
-                            sample["prediction_by_molmo"] = int(match.group(2))
+                            sample["prediction"] = int(match.group(2))
             formatted_data.append(sample)
         return formatted_data
 
@@ -150,7 +150,7 @@ def main():
             formatted_data.append(sample)
         return formatted_data
 
-    formatted_data = format_answers_pangea(data)
+    formatted_data = format_answers_molmo(data)
     assert len(formatted_data) == len(data)
     missing = get_missing_answers(formatted_data)
     print(f"Number of missing after answers formatting: {len(missing)}")

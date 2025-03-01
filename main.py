@@ -154,21 +154,28 @@ def evaluate_model(args):
         output_path = args.resume
         with open(output_path, "r") as f:
             results = json.load(f)
-            unique_results = set(
-                (
-                    example["question"],
-                    example["file_name"],
-                    example["image_png"],
-                    example["source"],
-                    example["original_question_num"],
-                )
-                for example in results
+        unique_results = set(
+            (
+                example["question"],
+                example["file_name"],
+                example["image_png"],
+                example["source"],
+                example["original_question_num"],
             )
-            results = [
-                example
-                for example in results
-                if (example["question"], tuple(example["options"])) in unique_results
-            ]
+            for example in results
+        )
+        results = [
+            example
+            for example in results
+            if (
+                example["question"],
+                example["file_name"],
+                example["image_png"],
+                example["source"],
+                example["original_question_num"],
+            )
+            in unique_results
+        ]
     else:
         output_folder = f"outputs/{args.method}/model_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
@@ -178,7 +185,7 @@ def evaluate_model(args):
     # Initialize model
     model, processor = initialize_model(args.model, args.model_path, args.api_key)
 
-    print(model)
+    print(f"Model loaded from {args.model}")
 
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(

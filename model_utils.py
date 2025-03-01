@@ -39,6 +39,7 @@ MAX_TOKENS = 256
 SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
+    "qwen2.5-3b",
     "qwen2.5-7b",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
@@ -90,7 +91,7 @@ def initialize_model(
         )
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
-    elif model_name == "qwen2.5-7b":
+    elif model_name in ["qwen2.5-7b", "qwen2.5-3b"]:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_path,
             temperature=TEMPERATURE,
@@ -186,6 +187,7 @@ def query_model(
     if model_name in [
         "qwen2-7b",
         "qwen2.5-7b",
+        "qwen2.5-3b",
     ]:
         answer = query_qwen2(model, processor, prompt, images, device)
     elif model_name == "pangea":
@@ -379,7 +381,7 @@ def generate_prompt(
     few_shot_samples: dict,
     method: str = "zero-shot",
 ):
-    if model_name in ["qwen2-7b", "qwen2.5-7b"]:
+    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-3b"]:
         return create_qwen_prompt(question, method, few_shot_samples)
     elif model_name == "molmo":
         return create_molmo_prompt(question, method, few_shot_samples)

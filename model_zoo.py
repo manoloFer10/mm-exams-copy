@@ -181,18 +181,19 @@ def create_qwen_prompt(question, method, few_shot_samples):
 
     if method == "few-shot":
         few_shot = few_shot_samples.get(lang, [])
-        prompt.append(f"\n{few_shot_instruction[lang]}\n")
-        for q in few_shot:
-            prompt.append(
-                f"\n{lang_keyword['question']}: {q['question']} \n{lang_keyword['options']}: \n"
-            )
-            for t, option in enumerate(q["options"]):
-                index = f"{chr(65+t)}. "
-                prompt.append(f"{index}) {option}\n")
-            prompt.append(
-                f"\n{lang_keyword['answer']}: <ANSWER> {chr(65+q['answer'])} </ANSWER>\n"
-            )
-            prompt.append("\n---\n")
+        if len(few_shot) != 0:
+            prompt.append(f"\n{few_shot_instruction[lang]}\n")
+            for q in few_shot:
+                prompt.append(
+                    f"\n{lang_keyword['question']}: {q['question']} \n{lang_keyword['options']}: \n"
+                )
+                for t, option in enumerate(q["options"]):
+                    index = f"{chr(65+t)}. "
+                    prompt.append(f"{index}) {option}\n")
+                prompt.append(
+                    f"\n{lang_keyword['answer']}: <ANSWER> {chr(65+q['answer'])} </ANSWER>\n"
+                )
+                prompt.append("\n---\n")
 
     prompt.append(f"\n{instruction[lang]}\n")
     prompt.append(
