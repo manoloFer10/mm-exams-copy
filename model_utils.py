@@ -73,7 +73,11 @@ INSTRUCTIONS_COT = {
 
 
 def initialize_model(
-    model_name: str, model_path: str, api_key: str = None, device: str = "cuda"
+    model_name: str,
+    model_path: str,
+    api_key: str = None,
+    device: str = "cuda",
+    n_gpu=1,
 ):
     """
     Initialize the model and processor/tokenizer based on the model name.
@@ -92,7 +96,7 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
     elif model_name in ["qwen2.5-7b", "qwen2.5-3b"]:
-        model = LLM(model_path)
+        model = LLM(model_path, tensor_parallel_size=n_gpu)
         # model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         #     model_path,
         #     temperature=TEMPERATURE,
@@ -190,7 +194,7 @@ def query_model(
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
-        answer = query_qwen_vllm(model, processor, prompt, images, device)
+        answer = query_qwen_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "pangea":
         answer = query_pangea(model, processor, prompt, images, device)
     elif model_name == "deepseek":

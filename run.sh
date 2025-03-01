@@ -25,8 +25,15 @@ export PYTHONPATH=$(pwd)
 # --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924 \
 # --method few-shot
 
+# python main.py \
+# --model deepseek \
+# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
+# --method zero-shot
+
 python main.py \
---model deepseek \
+--model qwen2.5-3b \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
---method zero-shot
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-3B-Instruct \
+--method zero-shot \
+--n_gpu 2
