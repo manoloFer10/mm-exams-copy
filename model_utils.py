@@ -13,6 +13,7 @@ from transformers import (
 from qwen_vl_utils import (
     process_vision_info,
 )
+from vllm import LLM, SamplingParams
 
 from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 from deepseek_vl2.utils.io import load_pil_images
@@ -78,7 +79,6 @@ def initialize_model(
     Initialize the model and processor/tokenizer based on the model name.
     """
     if model_name == "qwen2-7b":
-
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             model_path,
             # torch_dtype=torch.float16,
@@ -92,14 +92,15 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
     elif model_name in ["qwen2.5-7b", "qwen2.5-3b"]:
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_path,
-            temperature=TEMPERATURE,
-            do_sample=True,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            local_files_only=True,
-        )
+        model = LLM(model_path)
+        # model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        #     model_path,
+        #     temperature=TEMPERATURE,
+        #     do_sample=True,
+        #     device_map=device,
+        #     torch_dtype=torch.bfloat16,
+        #     local_files_only=True,
+        # )
         processor = AutoProcessor.from_pretrained(
             model_path,
             use_fast=True,
@@ -189,7 +190,7 @@ def query_model(
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
-        answer = query_qwen2(model, processor, prompt, images, device)
+        answer = query_qwen_vllm(model, processor, prompt, images, device)
     elif model_name == "pangea":
         answer = query_pangea(model, processor, prompt, images, device)
     elif model_name == "deepseek":
@@ -305,6 +306,30 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     return output_text
 
 
+def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
+    if images is not None:
+        try:
+            images = [Image.open(image).resize((224, 224)) for image in images]
+        except:
+            print(images)
+            images = None
+    # Prepare the text prompt
+    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+
+    sampling_params = SamplingParams(
+        max_tokens=max_tokens,
+        temperature=0.7,  # Adjust as needed
+        top_k=50,  # Adjust as needed
+        top_p=0.9,  # Adjust as needed
+    )
+
+    # Generate response using vLLM
+    outputs = model.generate([text_prompt], sampling_params)
+    response = outputs[0].outputs[0].text
+
+    return response
+
+
 def query_qwen2(
     model,
     processor,
@@ -332,10 +357,10 @@ def query_qwen2(
     # Generate response
     with torch.inference_mode():
         output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
-    generated_ids = [
-        output_ids[len(input_ids) :]
-        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
-    ]
+        generated_ids = [
+            output_ids[len(input_ids) :]
+            for input_ids, output_ids in zip(inputs.input_ids, output_ids)
+        ]
 
     response = processor.batch_decode(
         generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
