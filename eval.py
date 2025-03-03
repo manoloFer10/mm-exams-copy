@@ -51,6 +51,12 @@ def parse_args():
         required=True,
         help= "where to save output results" 
     )
+    parser.add_argument(
+        "--filter_data_by",
+        type=str,
+        default= None, 
+        help= "how to filter the entry dataset" 
+    )
     args = parser.parse_args()
     return args
 
@@ -88,7 +94,15 @@ def load_dataset_from_entry(args):
 
     if args.num_samples != 'all':
         df_dataset = df_dataset.head(int(args.num_samples))
-    
+
+    if args.filter_data_by:
+        filter_by = args.filter_data_by
+        if filter_by == 'only_image_png':
+            df_dataset = df_dataset[df_dataset['image_png'] != 'None']
+        if filter_by == 'exclude_image_png':
+            df_dataset = df_dataset[df_dataset['image_png'] == 'None']
+
+    print(f'Filtered dataset length: {len(df_dataset)}')
     return df_dataset
 
 def main():
