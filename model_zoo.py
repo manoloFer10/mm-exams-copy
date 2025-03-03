@@ -137,31 +137,40 @@ def create_molmo_prompt(question, method, few_shot_samples):
 # Pangea
 def create_pangea_prompt(question, method, few_shot_samples):
     lang = question["language"]
+    lang_keyword = keywords[lang]
     prompt = [
-        f"<|im_start|>system\n{INSTRUCTIONS_COT[lang]}<|im_end|>\n<|im_start|>user\n"
+        f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n<|im_start|>user\n"
     ]
     if question["image"] is not None:
         prompt.append("<image>\n")
         images = question["image"]
     else:
         images = None
+
     if method == "few-shot":
         few_shot = few_shot_samples.get(lang, [])
-        for q in few_shot:
-            prompt.append(
-                f"\nQuestion: {q['question'].replace('<image>', '')} \nOptions: \n"
-            )
-            for t, option in enumerate(q["options"]):
-                index = f"{chr(65+t)}. "
-                prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
+        if len(few_shot) != 0:
+            prompt.append(f"\n{few_shot_instruction[lang]}\n")
+            for q in few_shot:
+                prompt.append(
+                    f"\n{lang_keyword['question']}: {q['question'].replace('<image>', '')} \nOptions: \n"
+                )
+                for t, option in enumerate(q["options"]):
+                    index = f"{chr(65+t)}. "
+                    prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+                prompt.append(
+                    f"\n{lang_keyword['answer']}: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n"
+                )
+                prompt.append("\n---\n")
+
+    prompt.append(f"\n{instruction[lang]}\n")
     prompt.append(
-        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
+        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
     )
     for t, option in enumerate(question["options"]):
         index = f"{chr(65+t)}. "
         prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-    prompt.append("\nAnswer:")
+    prompt.append(f"\n{lang_keyword['answer']}:")
     prompt.append("<|im_end|>\n<|im_start|>assistant\n")
     message = "".join(prompt)
     return message, images
@@ -283,29 +292,6 @@ def create_deepseek_prompt(question, method, few_shot_samples):
         {"role": "<|Assistant|>", "content": ""},
     ]
     return [system_message[lang], message], None
-
-
-def create_deepseek_old_prompt(question, method, few_shot_samples):
-    content = []
-    lang = question["language"]
-    prompt = []
-    if question["image"] is not None:
-        prompt.append("<image>\n")
-        images = [question["image"]]
-    else:
-        images = None
-    prompt.append(
-        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
-    )
-    for t, option in enumerate(question["options"]):
-        index = f"{chr(65+t)}. "
-        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-    prompt.append("\nAnswer:")
-    message = [
-        {"role": "<|User|>", "content": "".join(prompt), "images": images},
-        {"role": "<|Assistant|>", "content": ""},
-    ]
-    return [INSTRUCTIONS_COT[lang], message], None
 
 
 # GPT

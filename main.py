@@ -71,10 +71,10 @@ def parse_args():
         help="Pass the file of aswers from where to resume",
     )
     parser.add_argument(
-        "--n_gpu",
+        "--ngpu",
         type=int,
         default=1,
-        help="Number of GPUs",
+        help="Number of GPUs to use",
     )
     args = parser.parse_args()
     return args
@@ -190,7 +190,7 @@ def evaluate_model(args):
 
     # Initialize model
     model, processor = initialize_model(
-        args.model, args.model_path, args.api_key, args.n_gpu
+        args.model, args.model_path, args.api_key, args.ngpu
     )
 
     print(f"Model loaded from {args.model}")

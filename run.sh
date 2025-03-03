@@ -14,10 +14,11 @@
 export HF_HUB_OFFLINE=1
 export PYTHONPATH=$(pwd)
 
-# python main.py \
-# --model pangea \
-# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
-# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Pangea-7B-hf
+python main.py \
+--model pangea \
+--dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Pangea-7B-hf \
+--method zero-shot
 
 # python main.py \
 # --model molmo \
@@ -31,9 +32,9 @@ export PYTHONPATH=$(pwd)
 # --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
 # --method zero-shot
 
-python main.py \
---model qwen2.5-3b \
---dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-3B-Instruct \
---method zero-shot \
---n_gpu 2
+# python main.py \
+# --model qwen2.5-3b \
+# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-3B-Instruct \
+# --method zero-shot \
+# --n_gpu 2

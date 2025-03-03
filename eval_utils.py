@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+from pathlib import Path
 
 EVALUATION_STYLES = ["complete", "accuracy", "statistics", "experiments", "plotting"]
 
@@ -194,7 +195,9 @@ LANGUAGES = {
 }
 
 
-def compute_accuracy(results, output_folder):
+def compute_accuracy(results, output_folder=None):
+    if output_folder is None:
+        output_folder = Path(results).parent
     os.makedirs(output_folder, exist_ok=True)
     keys_to_keep = {
         "language",
@@ -241,66 +244,27 @@ def compute_accuracy(results, output_folder):
     return output_file
 
 
-def get_results(results, output_dir, filter_multimodal=""):
-    data = pd.read_json(results)
-    if filter_multimodal == "multimodal":
+def get_summary(data, category, multimodal=""):
+    results = []
+    if multimodal == "multimodal":
         data = data[data["is_multimodal"] == True]
-    elif filter_multimodal == "text-only":
+    elif multimodal == "text-only":
         data = data[data["is_multimodal"] == False]
-    group_columns = ["language", "category_en", "general_category_en"]
-    results = []
-    grouped = data.groupby(group_columns)
-    results = []
+
+    grouped = data.groupby(category)
     for name, group in grouped:
-        none_count = group["accuracy"].isna().sum()
-        valid_count = group["accuracy"].notna().sum()
-        avg_accuracy = group["accuracy"].mean()
         results.append(
             {
-                "language": name[0],
-                "category_en": name[1],
-                "general_category_en": name[2],
-                "average_accuracy": avg_accuracy,
-                "valid_samples": valid_count,
-                "none_samples": none_count,
+                category: name,
+                "accuracy": group["accuracy"].sum() / group.shape[0],
+                "valid_acc": group["accuracy"].sum() / group["accuracy"].notna().sum(),
+                "valid_count": group["accuracy"].notna().sum(),
+                "total_questions": group.shape[0],
+                "none_count": group["accuracy"].isna().sum(),
+                "correct": group["accuracy"].sum(),
             }
         )
-    results_df = pd.DataFrame(results)
-    output_dir = os.path.join(
-        output_dir,
-        f"accuracy_results{'_'+filter_multimodal if filter_multimodal else ''}.csv",
-    )
-    results_df.to_csv(output_dir, index=False)
-    print(f"Analysis saved in {output_dir}")
-    return results_df
-
-    category = "language"
-    summary = (
-        results_df.groupby(category)
-        .apply(
-            lambda x: pd.Series(
-                {
-                    "weighted_avg_accuracy": (
-                        (x["average_accuracy"] * x["valid_samples"]).sum()
-                        / x["valid_samples"].sum()
-                    ),
-                    "error_rate": 1
-                    - (
-                        (x["average_accuracy"] * x["valid_samples"]).sum()
-                        / x["valid_samples"].sum()
-                    ),
-                    "valid_percentage": (
-                        x["valid_samples"].sum()
-                        / (x["valid_samples"].sum() + x["none_samples"].sum())
-                    )
-                    * 100,
-                    "total_none_samples": x["none_samples"].sum(),
-                    "total_valid_samples": x["valid_samples"].sum(),
-                }
-            )
-        )
-        .reset_index()
-    )
+    return pd.DataFrame(results)
 
 
 def perform_complete_evaluation(df_dataset, output_folder):

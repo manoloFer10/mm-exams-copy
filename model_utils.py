@@ -40,8 +40,9 @@ MAX_TOKENS = 256
 SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
-    "qwen2.5-3b",
+    "qwen2.5-75b",
     "qwen2.5-7b",
+    "qwen2.5-3b",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
@@ -77,7 +78,7 @@ def initialize_model(
     model_path: str,
     api_key: str = None,
     device: str = "cuda",
-    n_gpu=1,
+    ngpu=1,
 ):
     """
     Initialize the model and processor/tokenizer based on the model name.
@@ -95,16 +96,8 @@ def initialize_model(
         )
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
-    elif model_name in ["qwen2.5-7b", "qwen2.5-3b"]:
-        model = LLM(model_path, tensor_parallel_size=n_gpu)
-        # model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        #     model_path,
-        #     temperature=TEMPERATURE,
-        #     do_sample=True,
-        #     device_map=device,
-        #     torch_dtype=torch.bfloat16,
-        #     local_files_only=True,
-        # )
+    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-75b"]:
+        model = LLM(model_path, tensor_parallel_size=ngpu)
         processor = AutoProcessor.from_pretrained(
             model_path,
             use_fast=True,
@@ -144,11 +137,12 @@ def initialize_model(
         ).eval()
 
     elif model_name == "pangea":
-        model = LlavaNextForConditionalGeneration.from_pretrained(
-            model_path,
-            torch_dtype=torch.float16,
-            local_files_only=True,
-        ).to(device)
+        model = LLM(model_path, tensor_parallel_size=ngpu)
+        # model = LlavaNextForConditionalGeneration.from_pretrained(
+        #     model_path,
+        #     torch_dtype=torch.float16,
+        #     local_files_only=True,
+        # ).to(device)
         processor = AutoProcessor.from_pretrained(
             model_path, use_fast=True, local_files_only=True
         )
@@ -191,6 +185,7 @@ def query_model(
     """
     if model_name in [
         "qwen2-7b",
+        "qwen2.5-75b",
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
@@ -410,7 +405,7 @@ def generate_prompt(
     few_shot_samples: dict,
     method: str = "zero-shot",
 ):
-    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-3b"]:
+    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-75b", "qwen2.5-3b"]:
         return create_qwen_prompt(question, method, few_shot_samples)
     elif model_name == "molmo":
         return create_molmo_prompt(question, method, few_shot_samples)
