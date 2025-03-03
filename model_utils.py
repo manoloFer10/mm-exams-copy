@@ -308,13 +308,6 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
 
 def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
-    if images is not None:
-        try:
-            image = ImageAsset(image).pil_image.convert("RGB").resize((224, 224))
-            # images = [Image.open(image).resize((224, 224)) for image in images]
-        except:
-            print(images)
-            images = None
     # Prepare the text prompt
     # text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
@@ -324,11 +317,18 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
         top_k=50,  # Adjust as needed
         top_p=0.9,  # Adjust as needed
     )
-
-    inputs = {
-        "prompt": prompt,
-        "multi_modal_data": {"image": image},
-    }
+    if images is not None:
+        try:
+            images = [Image.open(image).resize((224, 224)) for image in images]
+            inputs = {
+                "prompt": prompt,
+                "multi_modal_data": {"image": images},
+            }
+        except:
+            print(images)
+            images = None
+    else:
+        inputs = {"prompt": prompt}
 
     # Generate response using vLLM
     outputs = model.generate(inputs, sampling_params)
