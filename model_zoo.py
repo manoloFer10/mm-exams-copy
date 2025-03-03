@@ -222,6 +222,57 @@ def create_qwen_prompt(question, method, few_shot_samples):
     return message, images
 
 
+def create_qwen_prompt_vllm(question, method, few_shot_samples):
+    # Determine the placeholder for images
+    lang = question["language"]
+    prompt = ""
+
+    # Add few-shot examples if applicable
+    if method == "few-shot":
+        few_shot = few_shot_samples.get(lang, [])
+        if few_shot:
+            prompt += f"\n{few_shot_instruction[lang]}\n"
+            for q in few_shot:
+                prompt += (
+                    f"\n{keywords[lang]['question']}: {q['question']}\n"
+                    f"{keywords[lang]['options']}:\n"
+                )
+                for t, option in enumerate(q["options"]):
+                    prompt += f"{chr(65 + t)}. {option}\n"
+                prompt += (
+                    f"\n{keywords[lang]['answer']}: <ANSWER> {chr(65 + q['answer'])} </ANSWER>\n"
+                    "\n---\n"
+                )
+
+    # Add the main question and options
+    prompt += (
+        f"\n{instruction[lang]}\n"
+        f"\n{keywords[lang]['question']}: {question['question']}\n"
+        f"{keywords[lang]['options']}:\n"
+    )
+    for t, option in enumerate(question["options"]):
+        prompt += f"{chr(65 + t)}. {option}\n"
+    prompt += f"\n{keywords[lang]['answer']}:"
+
+    # Construct the final message
+    if question["image"] is not None:
+        images = [question["image"]]
+        message = (
+            f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n"
+            f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>\n"
+            f"{prompt}<|im_end|>\n"
+            "<|im_start|>assistant\n"
+        )
+    else:
+        message = (
+            f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n"
+            f"{prompt}<|im_end|>\n"
+            "<|im_start|>assistant\n"
+        )
+
+    return message, images
+
+
 def create_qwen_oldprompt(question, method, few_shot_samples):
     content = []
     lang = question["language"]

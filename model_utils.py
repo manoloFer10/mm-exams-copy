@@ -32,6 +32,7 @@ from model_zoo import (
     create_molmo_prompt,
     create_pangea_prompt,
     create_deepseek_prompt,
+    create_qwen_prompt_vllm,
 )
 
 
@@ -315,7 +316,7 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
             print(images)
             images = None
     # Prepare the text prompt
-    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+    # text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
     sampling_params = SamplingParams(
         max_tokens=max_tokens,
@@ -325,12 +326,12 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
     )
 
     inputs = {
-        "prompt": text_prompt,
+        "prompt": prompt,
         "multi_modal_data": {"image": image},
     }
 
     # Generate response using vLLM
-    outputs = model.generate([inputs], sampling_params)
+    outputs = model.generate(inputs, sampling_params)
     response = outputs[0].outputs[0].text
 
     return response
@@ -439,7 +440,7 @@ def generate_prompt(
     method: str = "zero-shot",
 ):
     if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-75b", "qwen2.5-3b"]:
-        return create_qwen_prompt(question, method, few_shot_samples)
+        return create_qwen_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "molmo":
         return create_molmo_prompt(question, method, few_shot_samples)
     elif model_name == "pangea":
