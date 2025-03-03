@@ -183,7 +183,9 @@ def create_qwen_prompt(question, method, few_shot_samples):
     prompt = []
     lang_keyword = keywords[lang]
     if question["image"] is not None:
-        content.append({"type": "image"})
+        content.append(
+            {"type": f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>"}
+        )
         images = [question["image"]]
     else:
         images = None

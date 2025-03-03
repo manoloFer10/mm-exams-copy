@@ -14,6 +14,7 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 from vllm import LLM, SamplingParams
+from vllm.assets.image import ImageAsset
 
 from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 from deepseek_vl2.utils.io import load_pil_images
@@ -308,7 +309,8 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
     if images is not None:
         try:
-            images = [Image.open(image).resize((224, 224)) for image in images]
+            image = ImageAsset(image).pil_image.convert("RGB").resize((224, 224))
+            # images = [Image.open(image).resize((224, 224)) for image in images]
         except:
             print(images)
             images = None
@@ -322,8 +324,13 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
         top_p=0.9,  # Adjust as needed
     )
 
+    inputs = {
+        "prompt": text_prompt,
+        "multi_modal_data": {"image": image},
+    }
+
     # Generate response using vLLM
-    outputs = model.generate([text_prompt], sampling_params)
+    outputs = model.generate([inputs], sampling_params)
     response = outputs[0].outputs[0].text
 
     return response
@@ -395,6 +402,32 @@ def query_pangea(
         output, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
     return result
+
+
+def query_pangea_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
+    if images is not None:
+        try:
+            images = Image.open(images).convert("RGB").resize((224, 224))
+        except Exception as e:
+            print("Failed to load image:", e)
+            images = None
+
+    model_inputs = processor(images=images, text=prompt, return_tensors="pt").to(
+        "cuda", torch.float16
+    )
+
+    sampling_params = SamplingParams(
+        max_tokens=max_tokens,
+        temperature=0.7,  # Adjust as needed
+        top_k=50,  # Adjust as needed
+        top_p=0.9,  # Adjust as needed
+    )
+
+    # Generate response using vLLM
+    outputs = model.generate([model_inputs], sampling_params)
+    response = outputs[0].outputs[0].text
+
+    return response
 
 
 def generate_prompt(
