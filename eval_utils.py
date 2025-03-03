@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
 
 EVALUATION_STYLES = ['complete', 'metrics', 'statistics', 'experiments', 'plotting']
 
@@ -26,6 +28,15 @@ LANGUAGES = {
   "uk": "Ukrainian"
 }
 
+CLEAN_NAMES = {
+    'gemini-1.5-pro': 'Gemini 1.5 Pro',
+    'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet',
+    'gpt-4o': 'GPT-4o',
+    'molmo': 'Molmo-7B-D',
+    'pangea': 'Pangea-7B',
+    'qwen2.5-7b': 'Qwen2.5-VL-7B'
+}
+
 def perform_complete_evaluation(df_dataset, output_folder):
 
     perform_metrics(df_dataset, output_folder)
@@ -47,7 +58,7 @@ def perform_metrics(df_dataset, output_folder):
     df_dataset.rename(columns=dict(zip(model_columns, model_names)), inplace=True)
 
     # Group by different attributes and compute metrics.
-    for group in ['language', 'country', 'level', 'category_en', 'general_category_en']:
+    for group in ['language', 'country', 'level', 'category_en', 'general_category_en', 'image_type']:
         group_by_and_score(df_dataset, group, model_names, output_folder)
 
     # Calculate accuracies by language and category for each model.
@@ -78,7 +89,6 @@ def perform_metrics(df_dataset, output_folder):
 
     
 def group_by_and_score(df_dataset, group, model_names, output_folder):
-    
     VALID_VALUES = {0, 1, 2, 3}
     results = {}
 
@@ -91,21 +101,23 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
             valid_mask = subset[model].isin(VALID_VALUES)
             valid_count = valid_mask.sum()
             error_count = total - valid_count
-            
+
             # Calculate accuracy only on valid predictions.
             if valid_count > 0:
                 correct_count = (subset.loc[valid_mask, model] == subset.loc[valid_mask, 'answer']).sum()
-                accuracy = round(correct_count / valid_count, 4)
+                answer_accuracy = round(correct_count * 100 / valid_count, 1)
             else:
-                accuracy = np.nan  # or 0 if you prefer
+                answer_accuracy = np.nan
 
             # Error rate: fraction of predictions that are invalid.
-            error_rate = round(error_count / total, 4)
+            error_rate = round(error_count * 100 / total, 1)
+            total_accuracy = round(correct_count * 100 / total, 1)
 
             # Save metrics with descriptive column names.
-            metrics[f'{model}_accuracy'] = accuracy
+            metrics[f'{model}_total_accuracy'] = total_accuracy
+            metrics[f'{model}_answer_accuracy'] = answer_accuracy
             metrics[f'{model}_error_rate'] = error_rate
-            metrics[f'{model}_valid_answers'] = valid_count
+
         results[grp] = metrics
 
     # Also compute overall metrics (across the entire dataset).
@@ -117,19 +129,42 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
         error_count = total_overall - valid_count
         if valid_count > 0:
             correct_count = (df_dataset.loc[valid_mask, model] == df_dataset.loc[valid_mask, 'answer']).sum()
-            accuracy = round(correct_count / valid_count, 4)
+            answer_accuracy = round(correct_count * 100 / valid_count, 1)
         else:
-            accuracy = np.nan
-        error_rate = round(error_count / total_overall, 4)
-        overall_metrics[f'{model}_accuracy'] = accuracy
+            answer_accuracy = np.nan
+
+        error_rate = round(error_count * 100 / total_overall, 1)
+        total_accuracy = round(correct_count * 100 / total_overall, 1)
+
+        overall_metrics[f'{model}_total_accuracy'] = total_accuracy
+        overall_metrics[f'{model}_answer_accuracy'] = answer_accuracy
         overall_metrics[f'{model}_error_rate'] = error_rate
-        overall_metrics[f'{model}_valid_answers'] = valid_count
+
     results['Overall'] = overall_metrics
 
-    # Convert the results to a DataFrame and save.
-    results_df = pd.DataFrame(results).T  # transpose so rows are groups.
-    output_file = os.path.join(output_folder, f"metrics_across_{group}.csv")
-    results_df.to_csv(output_file)
+    # Convert the results to a DataFrame and transpose (so rows are groups).
+    results_df = pd.DataFrame(results).T
+
+    # Split the DataFrame into three separate ones based on metric type.
+    total_acc_df = results_df[[col for col in results_df.columns if col.endswith('total_accuracy')]]
+    answer_acc_df = results_df[[col for col in results_df.columns if col.endswith('answer_accuracy')]]
+    error_rate_df = results_df[[col for col in results_df.columns if col.endswith('error_rate')]]
+
+    # Create file paths for each metric.
+    
+    total_acc_file = os.path.join(output_folder, f"{group}/total_accuracy.csv")
+    answer_acc_file = os.path.join(output_folder, f"{group}/answer_accuracy.csv")
+    error_rate_file = os.path.join(output_folder, f"{group}/error_rate.csv")
+
+    # Ensure that the directory exists.
+    os.makedirs(os.path.dirname(total_acc_file), exist_ok=True)
+    os.makedirs(os.path.dirname(answer_acc_file), exist_ok=True)
+    os.makedirs(os.path.dirname(error_rate_file), exist_ok=True)
+
+    # Save each DataFrame to its corresponding CSV file.
+    total_acc_df.to_csv(total_acc_file, index=True)
+    answer_acc_df.to_csv(answer_acc_file, index=True)
+    error_rate_df.to_csv(error_rate_file, index=True)
 
 def calculate_answer_distribution(df, column_name):
     """Calculate the distribution and proportion of answers in a given column."""
@@ -213,20 +248,27 @@ def perform_plots(df_dataset, output_folder):
 
     #Spider graph; model accuracy by lang
     if os.path.exists(f'{origin_folder}/metrics'):
-        generate_spidergraph(f'{origin_folder}/metrics/metrics_across_language.csv', 'language', output_folder)
-        #generate_spidergraph(f'{origin_folder}/results_accuracy/accuracy_across_level.csv', 'level', output_folder)
+        generate_spidergraph(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
+        generate_spidergraph(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
+        generate_spidergraph(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
+        generate_spidergraph(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
     else:
         print('No accuracy results folder detected... passing to statistics plots.')
 
     #Multimodality distribution across lang grouped barplot.
     plot_multimodality_distribution(df_dataset, output_folder)
 
+    #Sunburst by categories
+    plot_sunburst(df_dataset, 'general_category_en', 'category_en', output_folder)
+
     #Category distribution across lang stacked barplot. 
     if os.path.exists(f'{origin_folder}/statistics'):
         plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
         plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
         plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/country_per_language.csv', 'Countries', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/general_category_en_per_language.csv', 'General categories', output_folder)
+        plot_stacked_bar(f'{origin_folder}/statistics/image_information_per_language.csv', 'Images information', output_folder)
 
     else:
         print('No statistics results folder detected...')
@@ -237,11 +279,15 @@ def perform_plots(df_dataset, output_folder):
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
     # Read data
+
+    '''CAMBIAR: ACTUALICE LOS VALORES DE ACCURACY DE LOS CSVS A PORCENTAJES'''
+
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
     
-    models = [col for col in df.columns if col.endswith('accuracy')]
-    model_names = [col.replace('_accuracy', '') for col in models]
+    models = [col for col in df.columns if col.endswith('_total_accuracy')]
+    model_names = [col.replace('_total_accuracy', '') for col in models]
+    model_names = [CLEAN_NAMES[col] for col in model_names]
     df.rename(columns=dict(zip(models, model_names)), inplace=True)
 
     group_values = df.index.tolist()
@@ -256,8 +302,8 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     ax.set_theta_direction(-1)
     
     # Now radial axis goes 0–100
-    ax.set_rlim(0, 1)
-    ax.set_rticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_rlim(0, 100)
+    ax.set_rticks([0, 20, 40, 60, 80, 100])
     ax.set_yticklabels(['0%', '20%', '40%', '60%', '80%', '100%'],
                        fontsize=10, color='grey')
     
@@ -326,24 +372,85 @@ def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
 
 def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
     df = pd.read_csv(file_path)
-    
+
+    # Exclude 'Overall' if present
     if 'Overall' in df['language'].values:
         df = df[df['language'] != 'Overall']
-    
+
+    # Prepare data
     exam_subjects = [col for col in df.columns if col != 'language']
     df_pivot = df.set_index('language')[exam_subjects]
-    
-    ax = df_pivot.plot(kind='bar', stacked=True, figsize=(10, 6))
-    
-    ax.set_xlabel('Language')
-    ax.set_ylabel('Count')
-    ax.set_title(f'{group_name} distribution by Language')
-    plt.legend(title=f'{group_name}', bbox_to_anchor=(1.05, 1), loc='upper left')
-    
-    # Save
+
+
+    # Set style and color palette
+    sns.set_style("whitegrid")
+    colors = sns.color_palette("colorblind", n_colors=len(exam_subjects))
+
+    # Create figure and axes
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    # Plot
+    df_pivot.plot(
+        kind='bar',
+        stacked=True,
+        ax=ax,
+        color=colors,
+        width=0.7
+    )
+
+    # Title and labels
+    title_fontsize = 14
+    label_fontsize = 12
+    tick_fontsize = 10
+
+    ax.set_title(f'{group_name} Distribution by Language', fontsize=title_fontsize, pad=15)
+    ax.set_xlabel('Language', fontsize=label_fontsize)
+    ax.set_ylabel('Count', fontsize=label_fontsize)
+
+    # Rotate x-axis labels if needed
+    ax.tick_params(axis='x', labelsize=tick_fontsize, rotation=45)
+    ax.tick_params(axis='y', labelsize=tick_fontsize)
+
+    # Optional: draw horizontal grid lines only
+    sns.despine(left=False, bottom=False)
+    ax.yaxis.grid(True, color='gray', linestyle='dashed', alpha=0.3)
+    ax.set_axisbelow(True)
+
+    # Legend
+    ax.legend(
+        title=f'{group_name}',
+        bbox_to_anchor=(0.5, -0.6),
+        loc='lower center',
+        ncol= 3 if len(exam_subjects) < 7 else 5,
+        borderaxespad=0,
+        fontsize=10,
+        title_fontsize=11
+    )
+
+    # Tight layout and save
     plt.tight_layout()
     output_path = f"{output_folder}/stacked_bar_{group_name.lower()}PerLang.png"
-    plt.savefig(output_path, bbox_inches='tight')
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
-    print(f"Stacked bar plots of {group_name} by language saved to: {output_path}")
+    print(f"Stacked bar plot of {group_name} by language saved to: {output_path}")
+
+def plot_sunburst(df: pd.DataFrame, parent_category:str, child_category:str, output_folder:str):
+
+    # Assuming your dataset has 'language' and 'level' columns
+    # Aggregate the count of questions per language and level
+    df_grouped = df.groupby([parent_category, child_category]).size().reset_index(name='count')
+
+    # Create the Sunburst chart
+    fig = px.sunburst(
+        df_grouped,
+        path=[parent_category, child_category],  # Hierarchical categories
+        values='count',  # Size of each sector
+        title=f"Distribution of MCQ Questions by {parent_category} and {child_category}"
+    )
+
+    # Save
+    output_path = f"{output_folder}/sunburst_{parent_category.lower()}TO{child_category.lower()}.png"
+    fig.write_image(output_path)
+
+    print(f"Sunburst plot of {parent_category} to {child_category} saved to: {output_path}")
