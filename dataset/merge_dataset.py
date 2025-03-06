@@ -10,6 +10,7 @@ expected_features = Features(
     {
         "language": Value("string"),
         "country": Value("string"),
+        "contributor_country": Value("string"),
         "file_name": Value("string"),
         "source": Value("string"),
         "license": Value("string"),
@@ -45,6 +46,22 @@ def check_options_format(question):
     return question
 
 
+def get_dataset_name(dataset_id: str | Path) -> str:
+    return str(dataset_id).split("/")[-1]
+
+
+def get_datasets_metadata(data_dir: Path) -> dict[str, dict[str, str]]:
+    datasets_metadata = {}
+
+    with open(data_dir / "datasets_metadata.json", "r") as f:
+        data = json.load(f)
+
+    for row in data:
+        datasets_metadata[get_dataset_name(row["dataset_id"])] = row
+
+    return datasets_metadata
+
+
 def merge_datasets(data_dir: str):
     """
     Merge all JSON datasets in the given directory into a single dataset.
@@ -59,6 +76,7 @@ def merge_datasets(data_dir: str):
     data_dir = Path(data_dir)
     datasets = []
     datasets_with_problems = []
+    datasets_metadata = get_datasets_metadata(data_dir)
     # Iterate over all subdirectories in the data directory
     for dataset_dir in data_dir.iterdir():
         if dataset_dir.is_dir():
@@ -96,6 +114,10 @@ def merge_datasets(data_dir: str):
                         )
                     else:
                         print(f"No images on {dataset_dir}")
+
+                    contributor_country = datasets_metadata[get_dataset_name(dataset_dir)]["contributor_country"]
+
+                    dataset = dataset.add_column("contributor_country", [contributor_country] * len(dataset))
 
                     # Add the dataset to the list
                     datasets.append(dataset)
