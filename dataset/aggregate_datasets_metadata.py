@@ -33,27 +33,29 @@ def main():
         if pd.isna(dataset_link):
             continue
 
+        dataset_id = dataset_link.replace("/tree/main", "").replace("https://huggingface.co/datasets/", "")
+
         contributor_name = exam.get("Contributor")
         contributor_discord_handle = exam.get("Discord Handle").lstrip("@")
 
         related_contributors = get_related_contributors(contributors, contributor_name, contributor_discord_handle)
 
         if len(related_contributors) == 0:
-            raise ValueError(f"No contributors found for {dataset_link}")
+            raise ValueError(f"No contributors found for {dataset_id}")
 
         if len(related_contributors) > 1:
-            raise ValueError(f"Multiple contributors found for {dataset_link}")
+            raise ValueError(f"Multiple contributors found for {dataset_id}")
 
         contributor_country = related_contributors.iloc[0].get("Country")
 
         if pd.isna(contributor_country):
-            raise ValueError(f"No country has been set for {dataset_link}")
+            raise ValueError(f"No country has been set for {dataset_id}")
 
-        aggregated_metadata.append((dataset_link, contributor_name, contributor_country))
+        aggregated_metadata.append((dataset_id, contributor_name, contributor_country))
 
-    aggregated_data = pd.DataFrame(aggregated_metadata, columns=["dataset_link", "contributor_name", "contributor_country"])
+    aggregated_data = pd.DataFrame(aggregated_metadata, columns=["dataset_id", "contributor_name", "contributor_country"])
 
-    aggregated_data.to_json("dataset/datasets_metadata.json", orient="records", indent=4)
+    aggregated_data.to_json("data/datasets_metadata.json", orient="records", indent=4)
 
 
 if __name__ == "__main__":
