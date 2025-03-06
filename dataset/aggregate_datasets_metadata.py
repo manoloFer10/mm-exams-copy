@@ -53,7 +53,7 @@ def main():
 
     aggregated_data = pd.DataFrame(aggregated_metadata, columns=["dataset_link", "contributor_name", "contributor_country"])
 
-    aggregated_data.to_json("datasets_metadata.json", orient="records", indent=4)
+    aggregated_data.to_json("dataset/datasets_metadata.json", orient="records", indent=4)
 
 
 if __name__ == "__main__":
