@@ -37,6 +37,15 @@ CLEAN_NAMES = {
     'qwen2.5-7b': 'Qwen2.5-VL-7B'
 }
 
+MODEL_TYPE = {
+    'gemini-1.5-pro': 'closed',
+    'claude-3-5-sonnet-latest': 'closed',
+    'gpt-4o': 'closed',
+    'molmo': 'open',
+    'pangea': 'open',
+    'qwen2.5-7b': 'open'
+}
+
 def perform_complete_evaluation(df_dataset, output_folder):
 
     perform_metrics(df_dataset, output_folder)
@@ -82,7 +91,21 @@ def perform_metrics(df_dataset, output_folder):
 
         distributions = [calculate_answer_distribution(df_dataset, col) for col in model_names]
         answer_stats = pd.concat([answer_stats] + distributions, axis=1)
-        answer_stats.to_csv(output_folder +"/answer_balance.csv", index=True)
+        answers_folder = os.path.join(output_folder, 'answer_distribution')
+        os.makedirs(os.path.dirname(answers_folder), exist_ok=True)
+        general_file_path = os.path.join(answers_folder, 'answer_balance.csv')
+        os.makedirs(os.path.dirname(general_file_path), exist_ok=True)
+        answer_stats.to_csv(general_file_path, index=True)
+
+        for lang in df_dataset['language'].unique():
+            filtered_df = df_dataset[df_dataset['language'] == lang]
+            answer_stats = calculate_answer_distribution(filtered_df, 'answer')
+            distributions = [calculate_answer_distribution(filtered_df, col) for col in model_names]
+            lang_answer_stats = pd.concat([answer_stats] + distributions, axis=1)
+            os.makedirs(os.path.dirname(answers_folder), exist_ok=True)
+            lang_file_path = os.path.join(answers_folder, f'{lang}_answer_balance.csv')
+            os.makedirs(os.path.dirname(lang_file_path), exist_ok=True)
+            lang_answer_stats.to_csv(lang_file_path, index=True)
     
 
     print(f"Metrics results saved to: {output_folder}")
@@ -155,16 +178,19 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
     total_acc_file = os.path.join(output_folder, f"{group}/total_accuracy.csv")
     answer_acc_file = os.path.join(output_folder, f"{group}/answer_accuracy.csv")
     error_rate_file = os.path.join(output_folder, f"{group}/error_rate.csv")
+    all_results_file = os.path.join(output_folder, f"{group}/all_results.csv")
 
     # Ensure that the directory exists.
     os.makedirs(os.path.dirname(total_acc_file), exist_ok=True)
     os.makedirs(os.path.dirname(answer_acc_file), exist_ok=True)
     os.makedirs(os.path.dirname(error_rate_file), exist_ok=True)
+    os.makedirs(os.path.dirname(all_results_file), exist_ok=True)
 
     # Save each DataFrame to its corresponding CSV file.
     total_acc_df.to_csv(total_acc_file, index=True)
     answer_acc_df.to_csv(answer_acc_file, index=True)
     error_rate_df.to_csv(error_rate_file, index=True)
+    results_df.to_csv(all_results_file, index=True)
 
 def calculate_answer_distribution(df, column_name):
     """Calculate the distribution and proportion of answers in a given column."""
@@ -248,18 +274,30 @@ def perform_plots(df_dataset, output_folder):
 
     #Spider graph; model accuracy by lang
     if os.path.exists(f'{origin_folder}/metrics'):
-        generate_spidergraph(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
-        generate_spidergraph(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
-        generate_spidergraph(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
-        generate_spidergraph(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/language/total_accuracy.csv', 'Language', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/level/total_accuracy.csv', 'Exam Level', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'Image Type', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'Subject', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
     else:
-        print('No accuracy results folder detected... passing to statistics plots.')
+        print('No metrics results folder detected... passing to statistics plots.')
 
     #Multimodality distribution across lang grouped barplot.
-    plot_multimodality_distribution(df_dataset, output_folder)
+    # plot_multimodality_distribution(df_dataset, output_folder)
 
-    #Sunburst by categories
-    plot_sunburst(df_dataset, 'general_category_en', 'category_en', output_folder)
+    # #Sunburst by categories
+    # plot_sunburst(df_dataset, 'general_category_en', 'category_en', output_folder)
 
     #Category distribution across lang stacked barplot. 
     if os.path.exists(f'{origin_folder}/statistics'):
@@ -279,9 +317,6 @@ def perform_plots(df_dataset, output_folder):
 
 def generate_spidergraph(data_path: str,group: str, output_folder: str):
     # Read data
-
-    '''CAMBIAR: ACTUALICE LOS VALORES DE ACCURACY DE LOS CSVS A PORCENTAJES'''
-
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
     
@@ -331,44 +366,273 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     
     print(f"Spider chart of models' accuracy across {group} saved to: {output_path}")
 
+def generate_group_barplots(data_path: str, group: str, output_folder: str):
+    # Read and prepare data
+    df = pd.read_csv(data_path, index_col=0)
+    df = df[df.index != 'Overall']
+    
+    models = [col for col in df.columns if col.endswith('_total_accuracy')]
+    model_names = [col.replace('_total_accuracy', '') for col in models]
+    model_names = [CLEAN_NAMES[col] for col in model_names]
+    df.rename(columns=dict(zip(models, model_names)), inplace=True)
+    
+    categories = df.index.tolist()
+    num_categories = len(categories)
+    
+    # Create subplot grid
+    cols = 3
+    rows = int(np.ceil(num_categories / cols))
+    
+    fig, axs = plt.subplots(rows, cols, figsize=(18, 4*rows))
+    
+    # Dynamic title positioning based on number of rows
+    title_y = 1.02 - 0.02 * rows  # Adjust this factor based on your needs
+    fig.suptitle(f'Model Accuracies by {group}', y=title_y, fontsize=16)
+    
+    axs = axs.flatten()
+    colors = plt.cm.tab10.colors
+    model_colors = {model: colors[i % len(colors)] for i, model in enumerate(model_names)}
+    
+    for idx, (category, ax) in enumerate(zip(categories, axs)):
+        values = df.loc[category].values
+        
+        bars = ax.bar(model_names, values, color=[model_colors[m] for m in model_names])
+        
+        ax.set_xticks(range(len(model_names)))
+        ax.set_xticklabels(model_names, rotation=45, ha='right', fontsize=9)
+        
+        ax.set_title(category, fontsize=12)
+        ax.set_ylim(0, 100)
+        ax.set_ylabel('Accuracy (%)', fontsize=10)
+        
+        max_acc = max([bar.get_height() for bar in bars])
+
+        # Add value labels
+        for bar in bars:
+            height = bar.get_height()
+            if height == max_acc:
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.1f}', ha='center', va='bottom', fontsize=7, fontweight= 'bold')
+            else:
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.1f}', ha='center', va='bottom', fontsize=7)
+    
+    for ax in axs[num_categories:]:
+        ax.remove()
+    
+    # Create common legend
+    handles = [plt.Rectangle((0,0),1,1, color=model_colors[m]) for m in model_names]
+    fig.legend(handles, model_names, 
+             loc='upper center', 
+             ncol=min(4, len(model_names)), 
+             bbox_to_anchor=(0.5, title_y-0.02),  # Adjust legend position
+             fontsize=10,
+             title='Models')
+    
+    plt.tight_layout(pad=3.0)
+    # Dynamic adjustment of top margin
+    plt.subplots_adjust(top=0.9 - 0.02*rows)  # Adjusts based on number of rows
+    
+    output_path = f"{output_folder}/accuracy_{group}_group_bars.png"
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Group-wise bar plots for {group} saved to: {output_path}")
+
+def generate_model_barplots(data_path: str, group: str, output_folder: str):
+    # Read and prepare data
+    df = pd.read_csv(data_path, index_col=0)
+    df = df[df.index != 'Overall']
+    
+    models = [col for col in df.columns if col.endswith('_total_accuracy')]
+    model_names = [col.replace('_total_accuracy', '') for col in models]
+    model_names = [CLEAN_NAMES[col] for col in model_names]
+    df.rename(columns=dict(zip(models, model_names)), inplace=True)
+    
+    categories = df.index.tolist()
+    num_models = len(model_names)
+    num_categories = len(categories)
+    
+    # Create color palette
+    colors = plt.cm.tab20.colors  # Using extended color palette
+    if num_categories > len(colors):
+        colors = plt.cm.gist_ncar(np.linspace(0, 1, num_categories))
+    
+    # Create subplot grid
+    cols = 3
+    rows = int(np.ceil(num_models / cols))
+    fig, axs = plt.subplots(rows, cols, figsize=(18, 4*rows))
+    fig.suptitle(f'Model Accuracies Across {group}', y=1.02, fontsize=16)
+    
+    # Handle axes array
+    axs = axs.flatten() if num_models > 1 else [axs]
+    
+    for idx, (model, ax) in enumerate(zip(model_names, axs)):
+        values = df[model].values
+        
+        # Create bar plot with explicit x-ticks
+        x_pos = np.arange(len(categories))
+        bars = ax.bar(x_pos, values, color=colors[:num_categories])
+        
+        # Formatting
+        ax.set_title(model, fontsize=12)
+        ax.set_ylim(0, 100)
+        ax.set_ylabel('Accuracy (%)', fontsize=10)
+        ax.set_xticks(x_pos)  # Set x-ticks first
+        ax.set_xticklabels(categories, rotation=45, ha='right', fontsize=9)
+        
+        max_acc = max([bar.get_height() for bar in bars])
+
+        # Add value labels
+        for bar in bars:
+            height = bar.get_height()
+            if height == max_acc:
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.1f}', ha='center', va='bottom', fontsize=7, fontweight= 'bold')
+            else:
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                        f'{height:.1f}', ha='center', va='bottom', fontsize=7)
+        
+        # Remove empty subplots
+        if idx == num_models - 1:
+            for ax in axs[idx+1:]:
+                ax.remove()
+    
+    # Create common legend
+    legend_handles = [plt.Rectangle((0,0),1,1, color=colors[i]) 
+                     for i in range(num_categories)]
+    fig.legend(legend_handles, categories,
+              loc='upper center',
+              ncol=min(6, num_categories),
+              bbox_to_anchor=(0.5, 0.98),
+              fontsize=10)
+    
+    plt.tight_layout(pad=3.0)
+    output_path = f"{output_folder}/accuracy_{group}_individual_bars.png"
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
+    
+    print(f"Individual model bar plots for {group} saved to: {output_path}")
+
+def generate_barplot(data_path: str, group: str, output_folder: str):
+     # Read data
+    df = pd.read_csv(data_path, index_col=0)
+    df = df[df.index != 'Overall']
+
+    # Identify model columns and clean their names
+    models = [col for col in df.columns if col.endswith('_total_accuracy')]
+    original_model_ids = [col.replace('_total_accuracy', '') for col in models]
+    model_names = [CLEAN_NAMES[model_id] for model_id in original_model_ids]
+    df.rename(columns=dict(zip(models, model_names)), inplace=True)
+
+    # Split models into closed and open
+    closed_ids = [model_id for model_id in original_model_ids if MODEL_TYPE.get(model_id) == 'closed']
+    open_ids = [model_id for model_id in original_model_ids if MODEL_TYPE.get(model_id) == 'open']
+    closed_models = [CLEAN_NAMES[model_id] for model_id in closed_ids]
+    open_models = [CLEAN_NAMES[model_id] for model_id in open_ids]
+
+    # Prepare data for plotting
+    df_reset = df.reset_index().rename(columns={'index': f'{group}'})
+    plot_df_closed = df_reset.melt(id_vars=f'{group}', value_vars=closed_models, 
+                                  var_name='Model', value_name='Accuracy')
+    plot_df_open = df_reset.melt(id_vars=f'{group}', value_vars=open_models, 
+                                var_name='Model', value_name='Accuracy')
+
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
+    
+    closed_palette = {
+        'Gemini 1.5 Pro': '#1F77B4',  # Blue
+        'Claude 3.5 Sonnet': '#FF7F0E',  # Orange
+        'GPT-4o': '#2CA02C',  # Green
+    }
+
+    open_palette = {
+        'Molmo-7B-D': '#D62728',  # Red
+        'Pangea-7B': '#9467BD',  # Purple
+        'Qwen2.5-VL-7B': '#8C564B'  # Brown
+    }
+
+    # Plot closed models
+    if closed_models:
+        sns.barplot(x=f'{group}', y='Accuracy', hue='Model', data=plot_df_closed, 
+                    palette=closed_palette.values(), ax=ax1, hue_order=closed_models)
+        ax1.set_title(f"Closed Models", pad=20)
+        ax1.set_ylabel('Accuracy (%)')
+        ax1.set_ylim(0, 100)
+        ax1.legend(loc='upper left', title='Model')
+        ax1.tick_params(axis='x', rotation=45)
+        ax1.set_xticklabels(ax1.get_xticklabels(), ha='right')
+    else:
+        ax1.remove()  # Remove subplot if no closed models
+    
+    # Plot open models
+    if open_models:
+        sns.barplot(x=f'{group}', y='Accuracy', hue='Model', data=plot_df_open, 
+                    palette=open_palette.values(), ax=ax2, hue_order=open_models)
+        ax2.set_title(f"Light-weight Open Models", pad=20)
+        ax2.set_ylabel('Accuracy (%)')
+        ax2.set_ylim(0, 100)
+        ax2.legend(loc='upper left', title='Model')
+        ax2.tick_params(axis='x', rotation=45)
+        ax2.set_xticklabels(ax2.get_xticklabels(), ha='right')
+    else:
+        ax2.remove()  # Remove subplot if no open models
+
+    plt.xlabel(f'{group}')  # Common x-axis label
+    plt.tight_layout()
+
+    # Save output
+    output_path = f"{output_folder}/accuracy_{group}_bar_split.png"
+    plt.savefig(output_path, format='png', bbox_inches='tight')
+    plt.close()
+    
+    print(f"Bar chart saved to: {output_path}")
+
 def plot_multimodality_distribution(df: pd.DataFrame, output_folder: str):
     """
-    pd DataFrame as input.
-
-    Should change this function to pick values from a csv generated by perform_descriptive_statistics
+    Plots a stacked bar chart showing the distribution of multimodality per language.
     """
     # Ensure required columns exist
     if not {'language', 'image'}.issubset(df.columns):
-        raise ValueError("The JSON file must contain 'language' and 'image' columns.")
+        raise ValueError("The DataFrame must contain 'language' and 'image' columns.")
     
+    # Map language codes to names and determine multimodality
     df['language'] = df['language'].apply(lambda code: LANGUAGES.get(code, code))
     df['has_image'] = df['image'].notnull().map({True: 'Multimodal', False: 'Text Only'})
     
+    # Group data and reshape for plotting
     grouped = df.groupby(['language', 'has_image']).size().reset_index(name='count')
-    
     pivot_df = grouped.pivot(index='language', columns='has_image', values='count')
+    
+    # Ensure both categories exist and handle missing values
+    pivot_df = pivot_df.reindex(columns=['Multimodal', 'Text Only']).fillna(0)
+    
+    # Create plot
     fig, ax = plt.subplots(figsize=(10, 6))
-    bar_width = 0.35
+    bar_width = 0.6  # Wider bar for better visibility
     x = range(len(pivot_df.index))
     
-    # Plot bars for each category
-    for i, (category, counts) in enumerate(pivot_df.items()):
-        ax.bar([pos + i * bar_width for pos in x], counts, width=bar_width, label=category)
+    # Plot stacked bars
+    ax.bar(x, pivot_df['Multimodal'], width=bar_width, label='Multimodal', bottom=0)
+    ax.bar(x, pivot_df['Text Only'], width=bar_width, label='Text Only', bottom=pivot_df['Multimodal'])
     
+    # Configure axes and labels
     ax.set_xlabel('Language', fontsize=12)
     ax.set_ylabel('Count', fontsize=12)
-    ax.set_title('Multimodality distribution per Language', fontsize=14)
-    ax.set_xticks([pos + bar_width / 2 for pos in x])
+    ax.set_title('Multimodality Distribution per Language', fontsize=14)
+    ax.set_xticks(x)
     ax.set_xticklabels(pivot_df.index, rotation=45, ha='right', fontsize=10)
-    ax.legend(title='Question Multimodality', fontsize=10)
+    ax.legend(title='Question Type', fontsize=10)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
     
+    # Save and close
     plt.tight_layout()
-    output_path = f"{output_folder}/question_multimodality_dist.png"
-    plt.savefig(output_path, bbox_inches='tight')
+    output_path = f"{output_folder}/question_multimodality_dist.svg"
+    plt.savefig(output_path, format='svg', bbox_inches='tight')
     plt.close()
 
-    print(f"Grouped bar plots of question multimodality saved to: {output_path}")
+    print(f"Stacked bar plot saved to: {output_path}")
 
 def plot_stacked_bar(file_path:str, group_name:str , output_folder:str):
     df = pd.read_csv(file_path)
@@ -446,11 +710,11 @@ def plot_sunburst(df: pd.DataFrame, parent_category:str, child_category:str, out
         df_grouped,
         path=[parent_category, child_category],  # Hierarchical categories
         values='count',  # Size of each sector
-        title=f"Distribution of MCQ Questions by {parent_category} and {child_category}"
+        #title=f"Distribution of MCQ Questions by {parent_category} and {child_category}"
     )
 
     # Save
-    output_path = f"{output_folder}/sunburst_{parent_category.lower()}TO{child_category.lower()}.png"
+    output_path = f"{output_folder}/sunburst_{parent_category.lower()}TO{child_category.lower()}.svg"
     fig.write_image(output_path)
 
     print(f"Sunburst plot of {parent_category} to {child_category} saved to: {output_path}")
