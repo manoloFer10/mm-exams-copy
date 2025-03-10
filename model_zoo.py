@@ -138,6 +138,30 @@ def create_molmo_prompt(question, method, few_shot_samples):
     return message, images
 
 
+def create_molmo_prompt_vllm(question, method, few_shot_samples):
+    lang = question["language"]
+    lang_keyword = keywords[lang]
+    prompt = [system_message[lang]]
+    if question["image"] is not None:
+        images = question["image"]
+    else:
+        images = None
+    prompt.append(
+        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append(f"\n{lang_keyword['answer']}:")
+    prompt = "".join(prompt)
+
+    prompt = [
+        f"<|im_start|>user <image>\n{prompt}<|im_end|> \
+        <|im_start|>assistant\n"
+    ]
+    return prompt, images
+
+
 # Pangea
 def create_pangea_prompt(question, method, few_shot_samples):
     lang = question["language"]

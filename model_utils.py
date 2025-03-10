@@ -15,7 +15,6 @@ from qwen_vl_utils import (
 )
 
 from vllm import LLM, SamplingParams
-from vllm.assets.image import ImageAsset
 
 # from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl2.utils.io import load_pil_images
@@ -35,11 +34,12 @@ from model_zoo import (
     create_deepseek_prompt,
     create_qwen_prompt_vllm,
     create_aya_prompt,
+    create_molmo_prompt_vllm,
 )
 
 
 TEMPERATURE = 0.7
-MAX_TOKENS = 256
+MAX_TOKENS = 512
 
 SUPPORTED_MODELS = [
     "gpt-4o",
@@ -113,6 +113,41 @@ def initialize_model(
             local_files_only=True,
         )
 
+    elif model_name == "molmo":
+        # processor = AutoProcessor.from_pretrained(
+        #     model_path,
+        #     torch_dtype="auto",
+        #     device_map=device,
+        #     local_files_only=True,
+        #     trust_remote_code=True,
+        # )
+        # model = AutoModelForCausalLM.from_pretrained(
+        #     model_path,
+        #     temperature=TEMPERATURE,
+        #     do_sample=True,
+        #     device_map=device,
+        #     local_files_only=True,
+        #     trust_remote_code=True,
+        # ).eval()
+        model = LLM(
+            model=model_name,
+            trust_remote_code=True,
+            dtype="bfloat16",
+            max_model_len=4096,
+        )
+        processor = None
+
+    elif model_name == "pangea":
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            local_files_only=True,
+        ).to(device)
+        processor = AutoProcessor.from_pretrained(
+            model_path, use_fast=True, local_files_only=True
+        )
+        processor.patch_size = 14
+        model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name == "deepseek":
         processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
             model_path, local_files_only=True
@@ -127,35 +162,6 @@ def initialize_model(
             local_files_only=True,
             trust_remote_code=True,
         ).eval()
-
-    elif model_name == "molmo":
-        processor = AutoProcessor.from_pretrained(
-            model_path,
-            torch_dtype="auto",
-            device_map=device,
-            local_files_only=True,
-            trust_remote_code=True,
-        )
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            temperature=TEMPERATURE,
-            do_sample=True,
-            device_map=device,
-            local_files_only=True,
-            trust_remote_code=True,
-        ).eval()
-
-    elif model_name == "pangea":
-        model = LlavaNextForConditionalGeneration.from_pretrained(
-            model_path,
-            torch_dtype=torch.float16,
-            local_files_only=True,
-        ).to(device)
-        processor = AutoProcessor.from_pretrained(
-            model_path, use_fast=True, local_files_only=True
-        )
-        processor.patch_size = 14
-        model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name in ["gpt-4o", "gpt-4o-mini"]:
         model = OpenAI(api_key=api_key)
         processor = None
@@ -200,13 +206,13 @@ def query_model(
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
-        answer = query_qwen_vllm(model, processor, prompt, images, max_tokens)
+        answer = query_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "pangea":
         answer = query_pangea(model, processor, prompt, images, device)
     elif model_name == "deepseek":
         answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
-        answer = query_molmo(model, processor, prompt, images, max_tokens)
+        answer = query_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "aya-vision":
         answer = query_aya(model, prompt, 0.3, 1024)
     elif model_name in [
@@ -326,7 +332,7 @@ def query_aya(client, prompt, temperature, max_tokens):
     return output_text
 
 
-def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
+def query_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
     # Prepare the text prompt
     # text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
 
@@ -424,32 +430,6 @@ def query_pangea(
     return result
 
 
-def query_pangea_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
-    if images is not None:
-        try:
-            images = Image.open(images).convert("RGB").resize((224, 224))
-        except Exception as e:
-            print("Failed to load image:", e)
-            images = None
-
-    model_inputs = processor(images=images, text=prompt, return_tensors="pt").to(
-        "cuda", torch.float16
-    )
-
-    sampling_params = SamplingParams(
-        max_tokens=max_tokens,
-        temperature=0.7,  # Adjust as needed
-        top_k=50,  # Adjust as needed
-        top_p=0.9,  # Adjust as needed
-    )
-
-    # Generate response using vLLM
-    outputs = model.generate([model_inputs], sampling_params)
-    response = outputs[0].outputs[0].text
-
-    return response
-
-
 def generate_prompt(
     model_name: str,
     question: dict,
@@ -461,7 +441,7 @@ def generate_prompt(
     if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
         return create_qwen_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "molmo":
-        return create_molmo_prompt(question, method, few_shot_samples)
+        return create_molmo_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "pangea":
         return create_pangea_prompt(question, method, few_shot_samples)
     elif model_name == "deepseek":

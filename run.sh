@@ -37,7 +37,8 @@ python main.py \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
 --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
 --method zero-shot \
---output_name "-no-image"
+--subset multimdoal \
+--output_name _no-image
 
 # python main.py \
 # --model aya-vision \
