@@ -130,7 +130,7 @@ def initialize_model(
         #     trust_remote_code=True,
         # ).eval()
         model = LLM(
-            model=model_name,
+            model=model_path,
             trust_remote_code=True,
             dtype="bfloat16",
             max_model_len=4096,
@@ -341,6 +341,7 @@ def query_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
         temperature=0.7,  # Adjust as needed
         top_p=0.9,  # Adjust as needed
     )
+
     if images is not None:
         try:
             images = [Image.open(image).resize((224, 224)) for image in images]

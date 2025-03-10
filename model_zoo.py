@@ -143,7 +143,7 @@ def create_molmo_prompt_vllm(question, method, few_shot_samples):
     lang_keyword = keywords[lang]
     prompt = [system_message[lang]]
     if question["image"] is not None:
-        images = question["image"]
+        images = [question["image"]]
     else:
         images = None
     prompt.append(
@@ -155,10 +155,7 @@ def create_molmo_prompt_vllm(question, method, few_shot_samples):
     prompt.append(f"\n{lang_keyword['answer']}:")
     prompt = "".join(prompt)
 
-    prompt = [
-        f"<|im_start|>user <image>\n{prompt}<|im_end|> \
-        <|im_start|>assistant\n"
-    ]
+    prompt = f"<|im_start|>user <image>\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
     return prompt, images
 
 
