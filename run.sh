@@ -33,7 +33,15 @@ export PYTHONPATH=$(pwd)
 # --method zero-shot
 
 python main.py \
---model qwen2.5-3b \
+--model qwen2.5-7b \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-3B-Instruct \
---method zero-shot
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
+--method zero-shot \
+--output_name "-no-image"
+
+# python main.py \
+# --model aya-vision \
+# --dataset dataset/dataset_0.hf \
+# --method zero-shot \
+# --api_key <fill-api-key> \
+# --resume outputs/zero-shot/model_aya-vision/results_0.json

@@ -267,6 +267,11 @@ def get_summary(data, category, multimodal=""):
     return pd.DataFrame(results)
 
 
+def print_column(summary, category):
+    for value in summary[category]:
+        print(value)
+
+
 def perform_complete_evaluation(df_dataset, output_folder):
 
     perform_accuracy_evaluation(df_dataset, output_folder)

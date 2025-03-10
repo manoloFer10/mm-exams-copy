@@ -13,17 +13,18 @@ from transformers import (
 from qwen_vl_utils import (
     process_vision_info,
 )
-from vllm import LLM, SamplingParams
-from vllm.assets.image import ImageAsset
 
-from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-from deepseek_vl2.utils.io import load_pil_images
+# from vllm import LLM, SamplingParams
+# from vllm.assets.image import ImageAsset
+
+# from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
+# from deepseek_vl2.utils.io import load_pil_images
 
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
-from torch.cuda.amp import autocast
+from cohere import ClientV2
 
 # from llava.model.builder import load_pretrained_model
 
@@ -33,6 +34,7 @@ from model_zoo import (
     create_pangea_prompt,
     create_deepseek_prompt,
     create_qwen_prompt_vllm,
+    create_aya_prompt,
 )
 
 
@@ -42,7 +44,7 @@ MAX_TOKENS = 256
 SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
-    "qwen2.5-75b",
+    "qwen2.5-72b",
     "qwen2.5-7b",
     "qwen2.5-3b",
     "gemini-1.5-pro",
@@ -50,6 +52,7 @@ SUPPORTED_MODELS = [
     "claude-3-5-sonnet-latest",
     "molmo",
     "deepseek",
+    "aya-vision",
 ]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
@@ -98,7 +101,7 @@ def initialize_model(
         )
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
-    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-75b"]:
+    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-72b"]:
         model = LLM(model_path, tensor_parallel_size=ngpu)
         processor = AutoProcessor.from_pretrained(
             model_path,
@@ -139,12 +142,11 @@ def initialize_model(
         ).eval()
 
     elif model_name == "pangea":
-        model = LLM(model_path, tensor_parallel_size=ngpu)
-        # model = LlavaNextForConditionalGeneration.from_pretrained(
-        #     model_path,
-        #     torch_dtype=torch.float16,
-        #     local_files_only=True,
-        # ).to(device)
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            local_files_only=True,
+        ).to(device)
         processor = AutoProcessor.from_pretrained(
             model_path, use_fast=True, local_files_only=True
         )
@@ -161,6 +163,9 @@ def initialize_model(
         processor = None
     elif model_name == "claude-3-5-sonnet-latest":
         model = Anthropic(api_key=api_key)
+        processor = None
+    elif model_name == "aya-vision":
+        model = ClientV2(api_key=api_key)
         processor = None
     else:
         raise NotImplementedError(
@@ -187,7 +192,7 @@ def query_model(
     """
     if model_name in [
         "qwen2-7b",
-        "qwen2.5-75b",
+        "qwen2.5-72b",
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
@@ -198,6 +203,8 @@ def query_model(
         answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
         answer = query_molmo(model, processor, prompt, images, max_tokens)
+    elif model_name == "aya-vision":
+        answer = query_aya(model, prompt, 0.3, 1024)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -208,9 +215,6 @@ def query_model(
 
     elif model_name == "claude-3-5-sonnet-latest":
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
-    elif model_name == "maya":
-        # Add Maya-specific parsing
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
@@ -304,6 +308,17 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
         max_tokens=max_tokens,
     )
     output_text = response.content[0].text
+    return output_text
+
+
+def query_aya(client, prompt, temperature, max_tokens):
+    response = client.chat(
+        model="c4ai-aya-vision-8b",
+        messages=prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    output_text = response.message.content[0].text
     return output_text
 
 
@@ -439,7 +454,7 @@ def generate_prompt(
     few_shot_samples: dict,
     method: str = "zero-shot",
 ):
-    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-75b", "qwen2.5-3b"]:
+    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
         return create_qwen_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "molmo":
         return create_molmo_prompt(question, method, few_shot_samples)
@@ -447,6 +462,8 @@ def generate_prompt(
         return create_pangea_prompt(question, method, few_shot_samples)
     elif model_name == "deepseek":
         return create_deepseek_prompt(question, method, few_shot_samples)
+    elif model_name == "aya-vision":
+        return create_aya_prompt(question, method, few_shot_samples)
     elif model_name in [
         "gpt-4o",
         "gpt-4o-mini",
@@ -461,9 +478,6 @@ def generate_prompt(
             instruction,
             method,
         )
-    elif model_name == "maya":
-        # Add Maya-specific parsing
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
             question["question"],

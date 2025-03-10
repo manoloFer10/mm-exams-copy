@@ -1,3 +1,7 @@
+import base64
+from PIL import Image
+import io
+
 INSTRUCTIONS_COT = {
     "en": "The following is a multiple-choice question. Think step by step and then provide your FINAL answer between the tags <ANSWER> X </ANSWER> where X is ONLY the correct letter of your choice. Do not write additional text between the tags.",
     "es": "Lo siguiente es una pregunta de opción múltiple. Piensa paso a paso y luego proporciona tu RESPUESTA FINAL entre las etiquetas <ANSWER> X </ANSWER>, donde X es ÚNICAMENTE la letra correcta de tu elección. No escribas texto adicional entre las etiquetas.",
@@ -269,39 +273,8 @@ def create_qwen_prompt_vllm(question, method, few_shot_samples):
             f"{prompt}<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
-
-    return message, images
-
-
-def create_qwen_oldprompt(question, method, few_shot_samples):
-    content = []
-    lang = question["language"]
-    prompt = []
-    if question["image"] is not None:
-        content.append({"type": "image"})
-        images = [question["image"]]
-    else:
         images = None
 
-    if method == "few-shot":
-        few_shot = few_shot_samples.get(lang, [])
-        for q in few_shot:
-            prompt.append(f"\nQuestion: {q['question']} \nOptions: \n")
-            for t, option in enumerate(q["options"]):
-                index = f"{chr(65+t)}. "
-                prompt.append(f"{index}) {option}\n")
-            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
-
-    prompt.append(f"\nQuestion: {question['question']} \nOptions: \n")
-    for t, option in enumerate(question["options"]):
-        index = f"{chr(65+t)}. "
-        prompt.append(f"{index}) {option}\n")
-    prompt.append("\nAnswer:")
-    content.append({"type": "text", "text": "".join(prompt)})
-    message = [
-        {"role": "system", "content": INSTRUCTIONS_COT[lang]},
-        {"role": "user", "content": content},
-    ]
     return message, images
 
 
@@ -352,3 +325,39 @@ def create_deepseek_prompt(question, method, few_shot_samples):
 # Gemini
 
 # Claude
+
+
+# Aya-Vision
+def create_aya_prompt(question, method, few_shot_samples):
+    lang = question["language"]
+    lang_keyword = keywords[lang]
+    prompt = []
+    content = []
+    # zero shot
+    if question["image"] is not None:
+        with open(question["image"], "rb") as img_file:
+            img = Image.open(img_file).resize((512, 512))
+            buffer = io.BytesIO()
+            img.save(buffer, format="PNG")
+
+            base64_image_url = f"data:image/jpeg;base64,{base64.b64encode(buffer.getvalue()).decode('utf-8')}"
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": base64_image_url},
+            },
+        )
+    prompt.append(f"\n{instruction[lang]}\n")
+    prompt.append(f"\n{keywords[lang]['question']}: {question['question']}\n")
+    prompt.append(f"{keywords[lang]['options']}:\n")
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option}\n")
+    prompt.append(f"\n{lang_keyword['answer']}:")
+    prompt = "".join(prompt)
+    content.append({"type": "text", "text": prompt})
+    message = [
+        {"role": "system", "content": system_message[lang]},
+        {"role": "user", "content": content},
+    ]
+    return message, None

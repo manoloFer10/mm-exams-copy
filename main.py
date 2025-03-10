@@ -17,7 +17,8 @@ from model_utils import (
     MAX_TOKENS,
 )
 
-IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
+# IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
+IMAGE_ROOT = "./"
 
 
 def parse_args():
@@ -69,6 +70,12 @@ def parse_args():
         type=str,
         default=None,
         help="Pass the file of aswers from where to resume",
+    )
+    parser.add_argument(
+        "--output_name",
+        type=str,
+        default="",
+        help="Optional extra output name",
     )
     parser.add_argument(
         "--ngpu",
@@ -185,7 +192,7 @@ def evaluate_model(args):
     else:
         output_folder = f"outputs/{args.method}/model_{args.model}"
         os.makedirs(output_folder, exist_ok=True)
-        output_path = os.path.join(output_folder, f"results.json")
+        output_path = os.path.join(output_folder, f"results{args.output_name}.json")
         results = []
 
     # Initialize model
