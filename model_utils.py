@@ -14,8 +14,8 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 
-# from vllm import LLM, SamplingParams
-# from vllm.assets.image import ImageAsset
+from vllm import LLM, SamplingParams
+from vllm.assets.image import ImageAsset
 
 # from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl2.utils.io import load_pil_images
@@ -102,7 +102,11 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
     elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-72b"]:
-        model = LLM(model_path, tensor_parallel_size=ngpu)
+        model = LLM(
+            model_path,
+            tensor_parallel_size=ngpu,
+            max_model_len=4096,
+        )
         processor = AutoProcessor.from_pretrained(
             model_path,
             use_fast=True,
@@ -329,7 +333,6 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
     sampling_params = SamplingParams(
         max_tokens=max_tokens,
         temperature=0.7,  # Adjust as needed
-        top_k=50,  # Adjust as needed
         top_p=0.9,  # Adjust as needed
     )
     if images is not None:
@@ -346,8 +349,9 @@ def query_qwen_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
         inputs = {"prompt": prompt}
 
     # Generate response using vLLM
-    outputs = model.generate(inputs, sampling_params)
-    response = outputs[0].outputs[0].text
+    with torch.inference_mode():
+        outputs = model.generate(inputs, sampling_params=sampling_params)
+        response = outputs[0].outputs[0].text
 
     return response
 

@@ -17,8 +17,8 @@ from model_utils import (
     MAX_TOKENS,
 )
 
-# IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
-IMAGE_ROOT = "./"
+IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
+# IMAGE_ROOT = "./"
 
 
 def parse_args():
@@ -76,6 +76,12 @@ def parse_args():
         type=str,
         default="",
         help="Optional extra output name",
+    )
+    parser.add_argument(
+        "--subset",
+        type=str,
+        default="",
+        help="select a subset of the dataset [multimoda, text-only].",
     )
     parser.add_argument(
         "--ngpu",
@@ -136,7 +142,12 @@ def filter_ready(dataset, results):
 
 
 def load_and_filter_dataset(
-    dataset_name: str, lang: str, num_samples: int, method: str, results: list = []
+    dataset_name: str,
+    lang: str,
+    num_samples: int,
+    method: str,
+    subset: str,
+    results: list = [],
 ):
     """
     Load and filter the dataset based on language and number of samples.
@@ -155,6 +166,8 @@ def load_and_filter_dataset(
         dataset = filter_ready(dataset, results)
     if num_samples is not None:
         dataset = dataset.select(range(num_samples))
+    if subset == "multimodal":
+        dataset = dataset.filter(lambda sample: sample["image"] is not None)
     return dataset, few_shot_examples
 
 
@@ -208,6 +221,7 @@ def evaluate_model(args):
         args.selected_langs,
         args.num_samples,
         args.method,
+        args.subset,
         results,
     )
     print(dataset)
