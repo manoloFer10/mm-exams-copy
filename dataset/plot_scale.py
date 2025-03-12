@@ -3,9 +3,9 @@ import numpy as np
 
 # Example data
 model_sizes = ["Qwen-VL-3B", "Qwen-VL-7B", "Qwen-VL-72B"]  # X-axis labels
-mm = [0.323, 0.391, 0.327]  # Multimodal performance
-text = [0.353, 0.433, 0.87]  # Text-only performance
-overall = [0.333, 0.41, 0.331]  # Overall performance
+mm = [0.346, 0.391, 0.327]  # Multimodal performance
+text = [0.353, 0.433, 0.366]  # Text-only performance
+overall = [0.329, 0.41, 0.331]  # Overall performance
 
 # Create the plot
 x = np.arange(len(model_sizes))  # X-axis positions

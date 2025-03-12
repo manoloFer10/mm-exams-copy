@@ -195,7 +195,7 @@ LANGUAGES = {
 }
 
 
-def compute_accuracy(results, output_folder=None):
+def compute_accuracy(results, output_folder=None, prediction_field=None):
     if output_folder is None:
         output_folder = Path(results).parent
     os.makedirs(output_folder, exist_ok=True)
@@ -217,10 +217,11 @@ def compute_accuracy(results, output_folder=None):
         results = json.load(f)
 
     # check change of prediction name
-    prediction_field = next(
-        (key for key in results[0].keys() if key.startswith("prediction_by_")),
-        "prediction",
-    )
+    if prediction_field is None:
+        prediction_field = next(
+            (key for key in results[0].keys() if key.startswith("prediction_by_")),
+            "prediction",
+        )
     for sample in results:
         if sample[prediction_field] not in [0, 1, 2, 3]:
             sample["accuracy"] = None
@@ -262,6 +263,8 @@ def get_summary(data, category, multimodal=""):
                 "total_questions": group.shape[0],
                 "none_count": group["accuracy"].isna().sum(),
                 "correct": group["accuracy"].sum(),
+                "num_lang": len(set(list(group["language"]))),
+                "languages": set(list(group["language"])),
             }
         )
     return pd.DataFrame(results)

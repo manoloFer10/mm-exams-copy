@@ -87,7 +87,6 @@ def main():
             answer = sample["reasoning"]
             if original not in [0, 1, 2, 3]:
                 if answer:
-                    # pattern = f"([ABCD])"
                     pattern = r"([ABCD])|([0123])"
                     match = re.search(pattern, answer, re.IGNORECASE)
                     if match:
@@ -99,13 +98,15 @@ def main():
             formatted_data.append(sample)
         return formatted_data
 
-    def format_answers_pangea(data):
+    def format_answers_pangea(data, pangea=False):
         formatted_data = []
         for sample in data:
             original = sample[prediction_field]
             answer = sample["reasoning"]
             if original not in [0, 1, 2, 3]:
                 if answer:
+                    if pangea:
+                        answer = answer.split("Answer: assistant ")[-1]
                     pattern = r"assistant <ANSWER>\s*([ABCD])\s*</ANSWER>"
                     match = re.search(pattern, answer)
                     if not match:
@@ -135,6 +136,8 @@ def main():
                         match = re.search(r"<ANSWER>\s*([ABCD])\s*</ANSWER>", answer)
                     if not match:
                         match = re.search(r"[Oo]ption\s*\(\s*([ABCD])\s*", answer)
+                    if not match:
+                        match = re.search(r"([ABCD])[\.\s]?", answer)
                     if match:
                         try:
                             letter = match.group(1).upper()
@@ -150,7 +153,7 @@ def main():
             formatted_data.append(sample)
         return formatted_data
 
-    formatted_data = format_answers_molmo(data)
+    formatted_data = format_answers_pangea(data)
     assert len(formatted_data) == len(data)
     missing = get_missing_answers(formatted_data)
     print(f"Number of missing after answers formatting: {len(missing)}")
