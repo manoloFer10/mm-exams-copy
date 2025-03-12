@@ -105,7 +105,7 @@ def initialize_model(
         model = LLM(
             model_path,
             tensor_parallel_size=ngpu,
-            max_model_len=4096,
+            max_model_len=8192,
         )
         processor = AutoProcessor.from_pretrained(
             model_path,
