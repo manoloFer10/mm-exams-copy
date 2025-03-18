@@ -14,7 +14,7 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 
-from vllm import LLM, SamplingParams
+# from vllm import LLM, SamplingParams
 
 # from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl2.utils.io import load_pil_images
@@ -39,7 +39,7 @@ from model_zoo import (
 
 
 TEMPERATURE = 0.7
-MAX_TOKENS = 512
+MAX_TOKENS = 1024
 
 SUPPORTED_MODELS = [
     "gpt-4o",
@@ -114,21 +114,6 @@ def initialize_model(
         )
 
     elif model_name == "molmo":
-        # processor = AutoProcessor.from_pretrained(
-        #     model_path,
-        #     torch_dtype="auto",
-        #     device_map=device,
-        #     local_files_only=True,
-        #     trust_remote_code=True,
-        # )
-        # model = AutoModelForCausalLM.from_pretrained(
-        #     model_path,
-        #     temperature=TEMPERATURE,
-        #     do_sample=True,
-        #     device_map=device,
-        #     local_files_only=True,
-        #     trust_remote_code=True,
-        # ).eval()
         model = LLM(
             model=model_path,
             trust_remote_code=True,
@@ -143,9 +128,7 @@ def initialize_model(
             torch_dtype=torch.float16,
             local_files_only=True,
         ).to(device)
-        processor = AutoProcessor.from_pretrained(
-            model_path, use_fast=True, local_files_only=True
-        )
+        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
         processor.patch_size = 14
         model.resize_token_embeddings(len(processor.tokenizer))
     elif model_name == "deepseek":
@@ -227,8 +210,7 @@ def query_model(
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-
-    return format_answer(answer)
+    return answer, None  # format_answer(answer)
 
 
 def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
@@ -323,7 +305,7 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
 def query_aya(client, prompt, temperature, max_tokens):
     response = client.chat(
-        model="c4ai-aya-vision-8b",
+        model="c4ai-aya-vision-32b",
         messages=prompt,
         temperature=temperature,
         max_tokens=max_tokens,
@@ -408,7 +390,7 @@ def query_pangea(
 ):
     if images is not None:
         try:
-            images = Image.open(images).convert("RGB").resize((224, 224))
+            images = Image.open(images).convert("RGB").resize((512, 512))
         except Exception as e:
             print("Failed to load image:", e)
             images = None
@@ -416,15 +398,16 @@ def query_pangea(
     model_inputs = processor(images=images, text=prompt, return_tensors="pt").to(
         "cuda", torch.float16
     )
-    output = model.generate(
-        **model_inputs,
-        max_new_tokens=max_tokens,
-        temperature=1.0,
-        top_p=0.9,
-        do_sample=True,
-        pad_token_id=processor.tokenizer.eos_token_id,
-    )
-    output = output[0]
+    with torch.inference_mode():
+        output = model.generate(
+            **model_inputs,
+            max_new_tokens=max_tokens,
+            temperature=1.0,
+            top_p=0.9,
+            do_sample=True,
+            pad_token_id=processor.tokenizer.eos_token_id,
+        )
+        output = output[0]
     result = processor.decode(
         output, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )

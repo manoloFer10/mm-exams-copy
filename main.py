@@ -17,8 +17,8 @@ from model_utils import (
     MAX_TOKENS,
 )
 
-IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
-# IMAGE_ROOT = "./"
+# IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
+IMAGE_ROOT = "./"
 
 
 def parse_args():

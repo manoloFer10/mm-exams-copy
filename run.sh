@@ -20,12 +20,12 @@ export PYTHONPATH=$(pwd)
 # --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Pangea-7B-hf \
 # --method zero-shot
 
-python main.py \
---model molmo \
---dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
---model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924 \
---method zero-shot \
---subset multimodal
+#python main.py \
+#--model molmo \
+#--dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
+#--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Molmo-7B-D-0924 \
+#--method zero-shot \
+#--subset multimodal
 
 # python main.py \
 # --model deepseek \
@@ -33,17 +33,19 @@ python main.py \
 # --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
 # --method zero-shot
 
-# python main.py \
-# --model qwen2.5-7b \
-# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
-# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
-# --method zero-shot \
-# --subset multimdoal \
-# --output_name _no-image
+python main.py \
+--model qwen2.5-7b \
+--dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset/dataset_0.hf/ \
+--model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
+--method zero-shot \
+--output_name _0
+#--subset multimdoal \
+#--output_name _no-image
 
 # python main.py \
 # --model aya-vision \
 # --dataset dataset/dataset_0.hf \
 # --method zero-shot \
-# --api_key <fill-api-key> \
-# --resume outputs/zero-shot/model_aya-vision/results_0.json
+# --api_key <> \
+# --resume outputs/zero-shot/model_aya-vision/results_0.json \
+# --output_name _0
