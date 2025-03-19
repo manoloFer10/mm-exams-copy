@@ -28,13 +28,77 @@ LANGUAGES = {
   "uk": "Ukrainian"
 }
 
+RESOURCE_LEVEL_MAP = {
+    "Portuguese": "High",
+    "Serbian": "High",
+    "Persian": "High",
+    "Hindi": "High",
+    "Russian": "High",
+    "English": "High",
+    "Spanish": "High",
+    "Hungarian": "High",
+    "Dutch; Flemish": "High",
+    "French": "High",
+    "German": "High",
+    "Arabic": "High",
+    "Croatian": "High",
+    "Ukrainian": "Mid/Low",
+    "Bengali": "Mid/Low",
+    "Lithuanian": "Mid/Low",
+    "Telugu": "Mid/Low",
+    "Nepali": "Mid/Low"
+}
+
+ENGLISH_MAP = {
+    "Arabic": "Non-English",
+    "Bengali": "Non-English",
+    "German": "Non-English",
+    "English": "English",
+    "Spanish": "Non-English",
+    "Persian": "Non-English",
+    "French": "Non-English",
+    "Hindi": "Non-English",
+    "Croatian": "Non-English",
+    "Hungarian": "Non-English",
+    "Lithuanian": "Non-English",
+    "Nepali": "Non-English",
+    "Dutch; Flemish": "Non-English",
+    "Portuguese": "Non-English",
+    "Russian": "Non-English",
+    "Serbian": "Non-English",
+    "Telugu": "Non-English",
+    "Ukrainian": "Non-English"
+}
+
+LATIN_SCRIPT_MAP = {
+    "Arabic": "Non-Latin",
+    "Bengali": "Non-Latin",
+    "German": "Latin",
+    "English": "Latin",
+    "Spanish": "Latin",
+    "Persian": "Non-Latin",
+    "French": "Latin",
+    "Hindi": "Non-Latin",
+    "Croatian": "Latin",
+    "Hungarian": "Latin",
+    "Lithuanian": "Latin",
+    "Nepali": "Non-Latin",
+    "Dutch; Flemish": "Latin",
+    "Portuguese": "Latin",
+    "Russian": "Non-Latin",
+    "Serbian": "Non-Latin", 
+    "Telugu": "Non-Latin",
+    "Ukrainian": "Non-Latin"
+}
+
 CLEAN_NAMES = {
     'gemini-1.5-pro': 'Gemini 1.5 Pro',
     'claude-3-5-sonnet-latest': 'Claude 3.5 Sonnet',
     'gpt-4o': 'GPT-4o',
     'molmo': 'Molmo-7B-D',
     'pangea': 'Pangea-7B',
-    'qwen2.5-7b': 'Qwen2.5-VL-7B'
+    'qwen2.5-7b': 'Qwen2.5-VL-7B',
+    'aya': 'Aya-Vision-8B'
 }
 
 MODEL_TYPE = {
@@ -43,7 +107,8 @@ MODEL_TYPE = {
     'gpt-4o': 'closed',
     'molmo': 'open',
     'pangea': 'open',
-    'qwen2.5-7b': 'open'
+    'qwen2.5-7b': 'open',
+    'aya': 'open'
 }
 
 def perform_complete_evaluation(df_dataset, output_folder):
@@ -61,13 +126,32 @@ def perform_metrics(df_dataset, output_folder):
 
     if 'language' in df_dataset.columns:
         df_dataset['language'] = df_dataset['language'].map(code2lang)
+        df_dataset['script'] = df_dataset['language'].map(LATIN_SCRIPT_MAP)
+        df_dataset['englishness'] = df_dataset['language'].map(ENGLISH_MAP)
+        df_dataset['resources'] = df_dataset['language'].map(RESOURCE_LEVEL_MAP)
 
     model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
+    for col in model_columns:
+        df_dataset[col] = df_dataset[col].apply(lambda x: int(x) if x in [0,1,2,3,'0', '1', '2', '3'] else x)
+
     model_names = [col.replace('prediction_by_', '') for col in model_columns]
     df_dataset.rename(columns=dict(zip(model_columns, model_names)), inplace=True)
 
     # Group by different attributes and compute metrics.
-    for group in ['language', 'country', 'level', 'category_en', 'general_category_en', 'image_type']:
+    attributes = [
+        'language', 
+        'country', 
+        'level', 
+        'category_en', 
+        'general_category_en', 
+        'image_type', 
+        'script', 
+        'englishness', 
+        'resources',
+        'regionality'
+        ]
+    
+    for group in attributes:
         group_by_and_score(df_dataset, group, model_names, output_folder)
 
     # Calculate accuracies by language and category for each model.
@@ -120,6 +204,8 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
         metrics = {}
         total = len(subset)
         for model in model_names:
+
+
             # Create a boolean mask for valid predictions.
             valid_mask = subset[model].isin(VALID_VALUES)
             valid_count = valid_mask.sum()
@@ -274,22 +360,28 @@ def perform_plots(df_dataset, output_folder):
 
     #Spider graph; model accuracy by lang
     if os.path.exists(f'{origin_folder}/metrics'):
-        # generate_spidergraph(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
-        # generate_spidergraph(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
-        # generate_spidergraph(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
-        # generate_spidergraph(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/language/total_accuracy.csv', 'Language', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/level/total_accuracy.csv', 'Exam Level', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'Image Type', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'Subject', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/language/total_accuracy.csv', 'language', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/level/total_accuracy.csv', 'level', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/image_type/total_accuracy.csv', 'image_type', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/category_en/total_accuracy.csv', 'category_en', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'level', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'image_type', output_folder)
+        # generate_spidergraph(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'category_en', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'Language', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'level', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'image_type', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'category_en', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'level', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'image_type', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'category_en', output_folder)
+        scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
+        scatter_plot_accuracies(f'{origin_folder}/metrics/englishness/answer_accuracy.csv', 'English vs Non-English Performance', output_folder)
+        scatter_plot_accuracies(f'{origin_folder}/metrics/resources/answer_accuracy.csv', 'High vs Mid-Low Resources Performance', output_folder)
+        scatter_plot_accuracies(f'{origin_folder}/metrics/regionality/answer_accuracy.csv', 'Agnostic vs Regional Performance', output_folder)
+
+
     else:
         print('No metrics results folder detected... passing to statistics plots.')
 
@@ -300,16 +392,16 @@ def perform_plots(df_dataset, output_folder):
     # plot_sunburst(df_dataset, 'general_category_en', 'category_en', output_folder)
 
     #Category distribution across lang stacked barplot. 
-    if os.path.exists(f'{origin_folder}/statistics'):
-        plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/country_per_language.csv', 'Countries', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/general_category_en_per_language.csv', 'General categories', output_folder)
-        plot_stacked_bar(f'{origin_folder}/statistics/image_information_per_language.csv', 'Images information', output_folder)
+    # if os.path.exists(f'{origin_folder}/statistics'):
+    #     plot_stacked_bar(f'{origin_folder}/statistics/category_en_per_language.csv', 'Categories', output_folder)
+    #     plot_stacked_bar(f'{origin_folder}/statistics/level_per_language.csv', 'Levels', output_folder)
+    #     plot_stacked_bar(f'{origin_folder}/statistics/image_type_per_language.csv', 'Image Types', output_folder)
+    #     plot_stacked_bar(f'{origin_folder}/statistics/country_per_language.csv', 'Countries', output_folder)
+    #     plot_stacked_bar(f'{origin_folder}/statistics/general_category_en_per_language.csv', 'General categories', output_folder)
+    #     plot_stacked_bar(f'{origin_folder}/statistics/image_information_per_language.csv', 'Images information', output_folder)
 
-    else:
-        print('No statistics results folder detected...')
+    # else:
+    #     print('No statistics results folder detected...')
 
     print(f'All plots saved to {output_folder}')
 
@@ -515,6 +607,9 @@ def generate_model_barplots(data_path: str, group: str, output_folder: str):
     print(f"Individual model bar plots for {group} saved to: {output_path}")
 
 def generate_barplot(data_path: str, group: str, output_folder: str):
+    '''
+    Generates two barplots in a fig, one on top of another splitting by open and closed models.
+    '''
      # Read data
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
@@ -550,7 +645,8 @@ def generate_barplot(data_path: str, group: str, output_folder: str):
     open_palette = {
         'Molmo-7B-D': '#D62728',  # Red
         'Pangea-7B': '#9467BD',  # Purple
-        'Qwen2.5-VL-7B': '#8C564B'  # Brown
+        'Qwen2.5-VL-7B': '#8C564B',  # Brown
+        'Aya-Vision-8B': '#17BECF'
     }
 
     # Plot closed models
@@ -583,8 +679,8 @@ def generate_barplot(data_path: str, group: str, output_folder: str):
     plt.tight_layout()
 
     # Save output
-    output_path = f"{output_folder}/accuracy_{group}_bar_split.png"
-    plt.savefig(output_path, format='png', bbox_inches='tight')
+    output_path = f"{output_folder}/accuracy_{group}_bar_split.svg"
+    plt.savefig(output_path, format='svg', bbox_inches='tight')
     plt.close()
     
     print(f"Bar chart saved to: {output_path}")
@@ -718,3 +814,50 @@ def plot_sunburst(df: pd.DataFrame, parent_category:str, child_category:str, out
     fig.write_image(output_path)
 
     print(f"Sunburst plot of {parent_category} to {child_category} saved to: {output_path}")
+
+def scatter_plot_accuracies(csv_file, title, output_folder):
+    
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv(csv_file, index_col=0)
+    
+    # Ensure there are at least two rows to compare
+    if len(df) < 2:
+        raise ValueError("CSV file must contain at least two rows of accuracy values.")
+    
+    # Extract the first two rows for comparison
+    first_row = df.iloc[0]
+    second_row = df.iloc[1]
+    
+    # Map the raw model names to clean names
+    models_cleaned = [CLEAN_NAMES.get(model.replace('_answer_accuracy', ''), model)
+                      for model in first_row.index]
+    
+    # Combine data for plotting
+    data = pd.DataFrame({
+        'Model': models_cleaned,
+        'FirstRow': first_row.values,
+        'SecondRow': second_row.values
+    })
+    
+    # Create scatter plot
+    plt.figure(figsize=(8, 6))
+    plt.scatter(data['SecondRow'], data['FirstRow'], s=100, color='tab:blue')
+    
+    # Annotate each point with model names
+    for _, row in data.iterrows():
+        plt.annotate(row['Model'], (row['SecondRow'], row['FirstRow']),
+                     textcoords="offset points", xytext=(5, 5), ha='left', fontsize=9)
+    
+    plt.xlabel(f'{df.index[1]}')
+    plt.ylabel(f'{df.index[0]}')
+    plt.title(title)
+    plt.xlim(0, 100)
+    plt.ylim(0, 100)
+    plt.grid(True)
+    plt.tight_layout()
+    
+    # Save the figure as PNG and SVG
+    plt.savefig(f"{output_folder}/{title}.png", format="png", dpi=300)
+    plt.savefig(f"{output_folder}/{title}.svg", format="svg")
+    
+    plt.show()
