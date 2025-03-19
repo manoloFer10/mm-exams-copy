@@ -20,3 +20,7 @@ LlaVA-NeXT/
 batch_*
 models/
 image_data/
+culture_data/
+recategorization/
+recovering_answers/
+random_experiments/

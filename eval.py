@@ -8,7 +8,7 @@ from huggingface_hub import login
 from eval_utils import (
     EVALUATION_STYLES,
     perform_complete_evaluation,
-    perform_accuracy_evaluation,
+    perform_metrics,
     perform_descriptive_statistics,
     perform_experiments,
     perform_plots
@@ -51,6 +51,12 @@ def parse_args():
         required=True,
         help= "where to save output results" 
     )
+    parser.add_argument(
+        "--filter_data_by",
+        type=str,
+        default= None, 
+        help= "how to filter the entry dataset" 
+    )
     args = parser.parse_args()
     return args
 
@@ -62,8 +68,8 @@ def run_evaluation(results, style, output_folder):
 
     if style == 'complete':
         perform_complete_evaluation(results, output_folder)
-    if style == 'accuracy':
-        perform_accuracy_evaluation(results, output_folder)
+    if style == 'metrics':
+        perform_metrics(results, output_folder)
     if style == 'statistics':
         perform_descriptive_statistics(results, output_folder)
     if style == 'experiments':
@@ -88,7 +94,15 @@ def load_dataset_from_entry(args):
 
     if args.num_samples != 'all':
         df_dataset = df_dataset.head(int(args.num_samples))
-    
+
+    if args.filter_data_by:
+        filter_by = args.filter_data_by
+        if filter_by == 'only_image_png':
+            df_dataset = df_dataset[df_dataset['image_png'].notnull()]
+        if filter_by == 'exclude_image_png':
+            df_dataset = df_dataset[df_dataset['image_png'].isnull()]
+
+    print(f'Filtered dataset length: {len(df_dataset)}')
     return df_dataset
 
 def main():
