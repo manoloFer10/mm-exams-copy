@@ -112,36 +112,7 @@ INSTRUCTION = "Output your choice in the specified JSON format."
 
 
 # Molmo
-def create_molmo_prompt(question, method, few_shot_samples):
-    lang = question["language"]
-    prompt = [INSTRUCTIONS_COT[lang]]
-    if question["image"] is not None:
-        images = question["image"]
-    else:
-        images = None
-    if method == "few-shot":
-        few_shot = few_shot_samples.get(lang, [])
-        for q in few_shot:
-            prompt.append(
-                f"\nQuestion: {q['question'].replace('<image>', '')} \nOptions: \n"
-            )
-            for t, option in enumerate(q["options"]):
-                index = f"{chr(65+t)}. "
-                prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-            prompt.append(f"\nAnswer: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n")
-    # zero-shot and/or end question
-    prompt.append(
-        f"\nQuestion: {question['question'].replace('<image>', '')} \nOptions: \n"
-    )
-    for t, option in enumerate(question["options"]):
-        index = f"{chr(65+t)}. "
-        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-    prompt.append("\nAnswer:")
-    message = "".join(prompt)
-    return message, images
-
-
-def create_molmo_prompt_vllm(question, method, few_shot_samples):
+def create_molmo_prompt_vllm2(question, method, few_shot_samples):
     lang = question["language"]
     lang_keyword = keywords[lang]
     prompt = [system_message[lang]]
@@ -156,6 +127,28 @@ def create_molmo_prompt_vllm(question, method, few_shot_samples):
         index = f"{chr(65+t)}. "
         prompt.append(f"{index}) {option.replace('<image>', '')}\n")
     prompt.append(f"\n{lang_keyword['answer']}:")
+    prompt = "".join(prompt)
+
+    prompt = f"<|im_start|>user <image>\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    return prompt, images
+
+
+def create_molmo_prompt_vllm(question, method, few_shot_samples):
+    lang = question["language"]
+    lang_keyword = keywords[lang]
+    prompt = [SYS_MESSAGE]
+    prompt.append(INSTRUCTION)
+    if question["image"] is not None:
+        images = [question["image"]]
+    else:
+        images = None
+    prompt.append(
+        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
+    )
+    for t, option in enumerate(question["options"]):
+        index = f"{chr(65+t)}. "
+        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
+    prompt.append(f"\nANSWER:")
     prompt = "".join(prompt)
 
     prompt = f"<|im_start|>user <image>\n{prompt}<|im_end|>\n<|im_start|>assistant\n"

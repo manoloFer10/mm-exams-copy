@@ -13,6 +13,7 @@ MAP_NON_LATIN = {
     "ب": "B",  # Arabic (Ba)
     "ج": "C",  # Arabic (Jeem)
     "د": "D",  # Arabic (Dal)
+    "Г": "D",
 }
 
 
