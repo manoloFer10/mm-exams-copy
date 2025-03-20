@@ -148,7 +148,7 @@ def perform_metrics(df_dataset, output_folder):
         'script', 
         'englishness', 
         'resources',
-        'regionality'
+        #'regionality'
         ]
     
     for group in attributes:
@@ -379,7 +379,7 @@ def perform_plots(df_dataset, output_folder):
         scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
         scatter_plot_accuracies(f'{origin_folder}/metrics/englishness/answer_accuracy.csv', 'English vs Non-English Performance', output_folder)
         scatter_plot_accuracies(f'{origin_folder}/metrics/resources/answer_accuracy.csv', 'High vs Mid-Low Resources Performance', output_folder)
-        scatter_plot_accuracies(f'{origin_folder}/metrics/regionality/answer_accuracy.csv', 'Agnostic vs Regional Performance', output_folder)
+        #scatter_plot_accuracies(f'{origin_folder}/metrics/regionality/answer_accuracy.csv', 'Agnostic vs Regional Performance', output_folder)
 
 
     else:

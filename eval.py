@@ -98,9 +98,9 @@ def load_dataset_from_entry(args):
     if args.filter_data_by:
         filter_by = args.filter_data_by
         if filter_by == 'only_image_png':
-            df_dataset = df_dataset[df_dataset['image_png'].notnull()]
+            df_dataset = df_dataset[df_dataset['image_png'] != 'None']
         if filter_by == 'exclude_image_png':
-            df_dataset = df_dataset[df_dataset['image_png'].isnull()]
+            df_dataset = df_dataset[df_dataset['image_png'] == 'None']
 
     print(f'Filtered dataset length: {len(df_dataset)}')
     return df_dataset
