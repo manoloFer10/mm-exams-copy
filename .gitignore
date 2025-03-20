@@ -1,7 +1,6 @@
 test data/
 eval_results/
-run.ps1
-run_*
+*.ps1
 *results*
 .DS_Store
 outputs/
