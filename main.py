@@ -235,7 +235,7 @@ def evaluate_model(args):
     dataset, few_shot_samples = load_and_filter_dataset(
         args.dataset,
         args.selected_langs,
-        args.num_samples,
+        int(args.num_samples),
         args.method,
         args.subset,
         results,
