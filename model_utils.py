@@ -10,9 +10,6 @@ from transformers import (
     GenerationConfig,
     LlavaNextForConditionalGeneration,
 )
-from qwen_vl_utils import (
-    process_vision_info,
-)
 
 from vllm import LLM, SamplingParams
 
@@ -21,9 +18,9 @@ from vllm import LLM, SamplingParams
 
 from pathlib import Path
 from PIL import Image
-from openai import OpenAI
-from anthropic import Anthropic
-#from cohere import ClientV2
+# from openai import OpenAI
+# from anthropic import Anthropic
+# from cohere import ClientV2
 
 # from llava.model.builder import load_pretrained_model
 
