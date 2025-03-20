@@ -25,7 +25,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--num_samples",
-        type=int,
+        type=str,
         default=None,
         help="number of samples to test",
     )
@@ -156,7 +156,7 @@ def load_and_filter_dataset(
     dataset_name: str,
     is_hf_dataset: bool,
     lang: str,
-    num_samples: int,
+    num_samples: str,
     method: str,
     subset: str,
     results: list = [],
@@ -181,7 +181,7 @@ def load_and_filter_dataset(
     if results:
         dataset = filter_ready(dataset, results)
     if num_samples is not None:
-        dataset = dataset.select(range(num_samples))
+        dataset = dataset.select(range(int(num_samples)))
     if subset == "multimodal":
         dataset = dataset.filter(lambda sample: sample["image"] is not None)
     return dataset, few_shot_examples
@@ -235,7 +235,7 @@ def evaluate_model(args):
     dataset, few_shot_samples = load_and_filter_dataset(
         args.dataset,
         args.selected_langs,
-        int(args.num_samples),
+        args.num_samples,
         args.method,
         args.subset,
         results,
