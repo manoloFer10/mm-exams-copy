@@ -14,7 +14,7 @@ from qwen_vl_utils import (
     process_vision_info,
 )
 
-# from vllm import LLM, SamplingParams
+from vllm import LLM, SamplingParams
 
 # from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
 # from deepseek_vl2.utils.io import load_pil_images
@@ -23,7 +23,7 @@ from pathlib import Path
 from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
-from cohere import ClientV2
+#from cohere import ClientV2
 
 # from llava.model.builder import load_pretrained_model
 
@@ -420,9 +420,10 @@ def generate_prompt(
     instruction,
     few_shot_samples: dict,
     method: str = "zero-shot",
+    experiment: str = 'normal'
 ):
     if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
-        return create_qwen_prompt_vllm(question, method, few_shot_samples)
+        return create_qwen_prompt_vllm(question, method, few_shot_samples, experiment)
     elif model_name == "molmo":
         return create_molmo_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "pangea":

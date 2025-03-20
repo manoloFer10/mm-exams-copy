@@ -204,7 +204,7 @@ def create_qwen_prompt(question, method, few_shot_samples):
     return message, images
 
 
-def create_qwen_prompt_vllm(question, method, few_shot_samples):
+def create_qwen_prompt_vllm(question, method, few_shot_samples, experiment):
     # Determine the placeholder for images
     lang = question["language"]
     prompt = ""
@@ -221,12 +221,23 @@ def create_qwen_prompt_vllm(question, method, few_shot_samples):
     # Construct the final message
     if question["image"] is not None:
         images = [question["image"]]
-        message = (
+        if experiment == 'captioned':
+            caption = question['image_caption']
+            ocr = question['image_ocr']
+            message = (
             f"<|im_start|>system\n{SYS_MESSAGE}<|im_end|>\n"
             f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>\n"
+            f"Caption: {caption} \n OCR: {ocr} \n"
             f"{prompt}<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
+        else:
+            message = (
+                f"<|im_start|>system\n{SYS_MESSAGE}<|im_end|>\n"
+                f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>\n"
+                f"{prompt}<|im_end|>\n"
+                "<|im_start|>assistant\n"
+            )
     else:
         message = (
             f"<|im_start|>system\n{SYS_MESSAGE}<|im_end|>\n"
