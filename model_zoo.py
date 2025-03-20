@@ -112,27 +112,6 @@ INSTRUCTION = "Output your choice in the specified JSON format."
 
 
 # Molmo
-def create_molmo_prompt_vllm2(question, method, few_shot_samples):
-    lang = question["language"]
-    lang_keyword = keywords[lang]
-    prompt = [system_message[lang]]
-    if question["image"] is not None:
-        images = [question["image"]]
-    else:
-        images = None
-    prompt.append(
-        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
-    )
-    for t, option in enumerate(question["options"]):
-        index = f"{chr(65+t)}. "
-        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-    prompt.append(f"\n{lang_keyword['answer']}:")
-    prompt = "".join(prompt)
-
-    prompt = f"<|im_start|>user <image>\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
-    return prompt, images
-
-
 def create_molmo_prompt_vllm(question, method, few_shot_samples):
     lang = question["language"]
     lang_keyword = keywords[lang]
@@ -156,47 +135,6 @@ def create_molmo_prompt_vllm(question, method, few_shot_samples):
 
 
 # Pangea
-def create_pangea_prompt2(question, method, few_shot_samples):
-    lang = question["language"]
-    lang_keyword = keywords[lang]
-    prompt = [
-        f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n<|im_start|>user\n"
-    ]
-    if question["image"] is not None:
-        prompt.append("<image>\n")
-        images = question["image"]
-    else:
-        images = None
-
-    if method == "few-shot":
-        few_shot = few_shot_samples.get(lang, [])
-        if len(few_shot) != 0:
-            prompt.append(f"\n{few_shot_instruction[lang]}\n")
-            for q in few_shot:
-                prompt.append(
-                    f"\n{lang_keyword['question']}: {q['question'].replace('<image>', '')} \nOptions: \n"
-                )
-                for t, option in enumerate(q["options"]):
-                    index = f"{chr(65+t)}. "
-                    prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-                prompt.append(
-                    f"\n{lang_keyword['answer']}: <ANSWER>{chr(65+q['answer'])}</ANSWER>\n"
-                )
-                prompt.append("\n---\n")
-
-    prompt.append(f"\n{instruction[lang]}\n")
-    prompt.append(
-        f"\n{lang_keyword['question']}: {question['question'].replace('<image>', '')} \n{lang_keyword['options']}: \n"
-    )
-    for t, option in enumerate(question["options"]):
-        index = f"{chr(65+t)}. "
-        prompt.append(f"{index}) {option.replace('<image>', '')}\n")
-    prompt.append(f"\n{lang_keyword['answer']}:")
-    prompt.append("<|im_end|>\n<|im_start|>assistant\n")
-    message = "".join(prompt)
-    return message, images
-
-
 def create_pangea_prompt(question, method, few_shot_samples):
     lang = question["language"]
     lang_keyword = keywords[lang]
@@ -263,58 +201,6 @@ def create_qwen_prompt(question, method, few_shot_samples):
         {"role": "system", "content": system_message[lang]},
         {"role": "user", "content": content},
     ]
-    return message, images
-
-
-def create_qwen_prompt_vllm2(question, method, few_shot_samples):
-    # Determine the placeholder for images
-    lang = question["language"]
-    prompt = ""
-
-    # Add few-shot examples if applicable
-    if method == "few-shot":
-        few_shot = few_shot_samples.get(lang, [])
-        if few_shot:
-            prompt += f"\n{few_shot_instruction[lang]}\n"
-            for q in few_shot:
-                prompt += (
-                    f"\n{keywords[lang]['question']}: {q['question']}\n"
-                    f"{keywords[lang]['options']}:\n"
-                )
-                for t, option in enumerate(q["options"]):
-                    prompt += f"{chr(65 + t)}. {option}\n"
-                prompt += (
-                    f"\n{keywords[lang]['answer']}: <ANSWER> {chr(65 + q['answer'])} </ANSWER>\n"
-                    "\n---\n"
-                )
-
-    # Add the main question and options
-    prompt += (
-        f"\n{instruction[lang]}\n"
-        f"\n{keywords[lang]['question']}: {question['question']}\n"
-        f"{keywords[lang]['options']}:\n"
-    )
-    for t, option in enumerate(question["options"]):
-        prompt += f"{chr(65 + t)}. {option}\n"
-    prompt += f"\n{keywords[lang]['answer']}:"
-
-    # Construct the final message
-    if question["image"] is not None:
-        images = [question["image"]]
-        message = (
-            f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n"
-            f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>\n"
-            f"{prompt}<|im_end|>\n"
-            "<|im_start|>assistant\n"
-        )
-    else:
-        message = (
-            f"<|im_start|>system\n{system_message[lang]}<|im_end|>\n"
-            f"{prompt}<|im_end|>\n"
-            "<|im_start|>assistant\n"
-        )
-        images = None
-
     return message, images
 
 

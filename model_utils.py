@@ -29,7 +29,6 @@ from cohere import ClientV2
 
 from model_zoo import (
     create_qwen_prompt,
-    create_molmo_prompt,
     create_pangea_prompt,
     create_deepseek_prompt,
     create_qwen_prompt_vllm,
@@ -326,7 +325,7 @@ def query_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
 
     if images is not None:
         try:
-            images = [Image.open(image).resize((224, 224)) for image in images]
+            images = [Image.open(image).resize((512, 512)) for image in images]
             inputs = {
                 "prompt": prompt,
                 "multi_modal_data": {"image": images},
