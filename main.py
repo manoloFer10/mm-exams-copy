@@ -154,7 +154,7 @@ def filter_ready(dataset, results):
 
 def load_and_filter_dataset(
     dataset_name: str,
-    is_hf_dataset: bool,
+    is_hf_dataset: str,
     lang: str,
     num_samples: str,
     method: str,
@@ -234,7 +234,8 @@ def evaluate_model(args):
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(
         args.dataset,
-        args.selected_langs,
+        args.is_hf_dataset, 
+        args.selected_langs,  
         args.num_samples,
         args.method,
         args.subset,
