@@ -7,7 +7,7 @@
 # SBATCH --ntasks=1
 # SBATCH --cpus-per-task=4
 # SBATCH --mem=40G
-# SBATCH --time=10:00:00
+# SBATCH --time=02:00:00
 # SBATCH --gres=gpu:1
 # SBATCH --output=./slurm/eval_%j.log
 
@@ -23,5 +23,4 @@ python main.py \
 --method zero-shot \
 --experiment captioned \
 --output_name _captioned \
---subset multimodal \
---output_name _no-image
+--subset multimodal 
