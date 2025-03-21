@@ -629,7 +629,7 @@ def parse_anthropic_input(
     return messages, None  # image paths not expected for openai client.
 
 
-def format_answer(answer: str):
+def extract_answer_from_tags(answer: str):
     """
     Searchs for the answer between tags <Answer>.
 
