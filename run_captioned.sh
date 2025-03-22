@@ -23,4 +23,5 @@ python main.py \
 --method zero-shot \
 --experiment captioned \
 --output_name _captioned \
---subset multimodal 
+--subset multimodal \
+--resume outputs/zero-shot/model_qwen2.5-7b/results_captioned.json
