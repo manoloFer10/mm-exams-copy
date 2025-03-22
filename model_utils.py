@@ -18,9 +18,11 @@ from vllm import LLM, SamplingParams
 
 from pathlib import Path
 from PIL import Image
-# from openai import OpenAI
-# from anthropic import Anthropic
-# from cohere import ClientV2
+from openai import OpenAI
+from anthropic import Anthropic
+from cohere import ClientV2
+
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # from llava.model.builder import load_pretrained_model
 
@@ -209,33 +211,33 @@ def query_model(
     return answer, None  # format_answer(answer)
 
 
-def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
+# def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
 
-    pil_images = load_pil_images(prompt[1])
-    prepare_inputs = processor(
-        system_prompt=prompt[0],
-        conversations=prompt[1],
-        images=pil_images,
-        force_batchify=True,
-    ).to(model.device)
-    # run image encoder to get the image embeddings
-    inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
+#     pil_images = load_pil_images(prompt[1])
+#     prepare_inputs = processor(
+#         system_prompt=prompt[0],
+#         conversations=prompt[1],
+#         images=pil_images,
+#         force_batchify=True,
+#     ).to(model.device)
+#     # run image encoder to get the image embeddings
+#     inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
 
-    # run the model to get the response
-    outputs = model.language.generate(
-        inputs_embeds=inputs_embeds,
-        attention_mask=prepare_inputs.attention_mask,
-        pad_token_id=processor.tokenizer.eos_token_id,
-        bos_token_id=processor.tokenizer.bos_token_id,
-        eos_token_id=processor.tokenizer.eos_token_id,
-        max_new_tokens=max_tokens,
-        do_sample=True,
-        use_cache=True,
-        return_dict_in_generate=True,
-        output_scores=False,
-    )
-    answer = processor.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
-    return answer
+#     # run the model to get the response
+#     outputs = model.language.generate(
+#         inputs_embeds=inputs_embeds,
+#         attention_mask=prepare_inputs.attention_mask,
+#         pad_token_id=processor.tokenizer.eos_token_id,
+#         bos_token_id=processor.tokenizer.bos_token_id,
+#         eos_token_id=processor.tokenizer.eos_token_id,
+#         max_new_tokens=max_tokens,
+#         do_sample=True,
+#         use_cache=True,
+#         return_dict_in_generate=True,
+#         output_scores=False,
+#     )
+#     answer = processor.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
+#     return answer
 
 
 def query_molmo(model, processor, prompt: list, images: list, max_tokens):
@@ -271,7 +273,7 @@ def query_molmo(model, processor, prompt: list, images: list, max_tokens):
 
         return generated_text
 
-
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_openai(client, model_name, prompt, temperature, max_tokens):
     response = client.chat.completions.create(
         model=model_name,
@@ -436,12 +438,11 @@ def generate_prompt(
         "gemini-1.5-pro",
     ]:
         return parse_openai_input(
-            question["question"],
-            question["image"],
-            question["options"],
+            question,
             lang,
             instruction,
             method,
+            experiment
         )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
@@ -457,13 +458,15 @@ def generate_prompt(
 
 
 def parse_openai_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
+    question, lang, instruction, few_shot_setting, experiment
 ):
     """
     Outputs: conversation dictionary supported by OpenAI.
     """
     system_message = {"role": "system", "content": instruction}
-
+    question_text = question['question']
+    question_image = question['image']
+    options_list = question['options']
     def encode_image(image_path):
         try:
             with open(image_path, "rb") as image_file:
@@ -476,16 +479,31 @@ def parse_openai_input(
 
     if question_image:
         base64_image = encode_image(question_image)
-        question = [
-            {"type": "text", "text": question_text},
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}",
-                    "detail": "low",
+        if experiment == 'captioning':
+            caption = question['image_caption']
+            ocr = question['image_ocr']
+            question = [
+                {"type": "text", "text": question_text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "low",
+                    },
                 },
-            },
-        ]
+                {"type": "text", "text": f'Caption: {caption} \n OCR: {ocr}'}
+            ]
+        else:
+            question = [
+                {"type": "text", "text": question_text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "low",
+                    },
+                }
+            ]
     else:
         question = [{"type": "text", "text": question_text}]
 
