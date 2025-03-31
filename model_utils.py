@@ -44,6 +44,7 @@ SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
     "qwen2.5-72b",
+    "qwen2.5-32b",
     "qwen2.5-7b",
     "qwen2.5-3b",
     "gemini-1.5-pro",
@@ -100,7 +101,7 @@ def initialize_model(
         )
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
 
-    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-72b"]:
+    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-32b", "qwen2.5-72b"]:
         model = LLM(
             model_path,
             tensor_parallel_size=ngpu,
@@ -185,6 +186,7 @@ def query_model(
     if model_name in [
         "qwen2-7b",
         "qwen2.5-72b",
+        "qwen2.5-32b",
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
@@ -421,7 +423,13 @@ def generate_prompt(
     few_shot_samples: dict,
     method: str = "zero-shot",
 ):
-    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
+    if model_name in [
+        "qwen2-7b",
+        "qwen2.5-7b",
+        "qwen2.5-72b",
+        "qwen2.5-32b",
+        "qwen2.5-3b",
+    ]:
         return create_qwen_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "molmo":
         return create_molmo_prompt_vllm(question, method, few_shot_samples)
