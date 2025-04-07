@@ -98,7 +98,11 @@ CLEAN_NAMES = {
     'molmo': 'Molmo-7B-D',
     'pangea': 'Pangea-7B',
     'qwen2.5-7b': 'Qwen2.5-VL-7B',
-    'aya': 'Aya-Vision-8B'
+    'aya': 'Aya-Vision-8B',
+    'qwen72b': 'Qwen2.5-VL-72B',
+    'qwen3b': 'Qwen2.5-VL-3B',
+    'qwen32': 'Qwen2.5-VL-32B',
+    'aya-32b': 'Aya-Vision-32B'
 }
 
 MODEL_TYPE = {
@@ -108,7 +112,10 @@ MODEL_TYPE = {
     'molmo': 'open',
     'pangea': 'open',
     'qwen2.5-7b': 'open',
-    'aya': 'open'
+    'aya': 'open',
+    'qwen72b': 'open',
+    'qwen3b': 'open',
+    'aya-32b': 'open'
 }
 
 def perform_complete_evaluation(df_dataset, output_folder):
@@ -148,7 +155,7 @@ def perform_metrics(df_dataset, output_folder):
         'script', 
         'englishness', 
         'resources',
-        'regionality'
+        #'regionality'
         ]
     
     for group in attributes:
@@ -368,18 +375,18 @@ def perform_plots(df_dataset, output_folder):
         generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
         generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
         generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
         # generate_model_barplots(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'level', output_folder)
         # generate_model_barplots(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'image_type', output_folder)
         # generate_model_barplots(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'category_en', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
         # generate_group_barplots(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'level', output_folder)
         # generate_group_barplots(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'image_type', output_folder)
         # generate_group_barplots(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'category_en', output_folder)
         scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
-        scatter_plot_accuracies(f'{origin_folder}/metrics/englishness/answer_accuracy.csv', 'English vs Non-English Performance', output_folder)
-        scatter_plot_accuracies(f'{origin_folder}/metrics/resources/answer_accuracy.csv', 'High vs Mid-Low Resources Performance', output_folder)
-        scatter_plot_accuracies(f'{origin_folder}/metrics/regionality/answer_accuracy.csv', 'Agnostic vs Regional Performance', output_folder)
+        # scatter_plot_accuracies(f'{origin_folder}/metrics/englishness/answer_accuracy.csv', 'English vs Non-English Performance', output_folder)
+        # scatter_plot_accuracies(f'{origin_folder}/metrics/resources/answer_accuracy.csv', 'High vs Mid-Low Resources Performance', output_folder)
+        # scatter_plot_accuracies(f'{origin_folder}/metrics/regionality/answer_accuracy.csv', 'Agnostic vs Regional Performance', output_folder)
 
 
     else:
@@ -412,8 +419,8 @@ def generate_spidergraph(data_path: str,group: str, output_folder: str):
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
     
-    models = [col for col in df.columns if col.endswith('_total_accuracy')]
-    model_names = [col.replace('_total_accuracy', '') for col in models]
+    models = [col for col in df.columns if col.endswith('_answer_accuracy')]
+    model_names = [col.replace('_answer_accuracy', '') for col in models]
     model_names = [CLEAN_NAMES[col] for col in model_names]
     df.rename(columns=dict(zip(models, model_names)), inplace=True)
 
@@ -463,8 +470,8 @@ def generate_group_barplots(data_path: str, group: str, output_folder: str):
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
     
-    models = [col for col in df.columns if col.endswith('_total_accuracy')]
-    model_names = [col.replace('_total_accuracy', '') for col in models]
+    models = [col for col in df.columns if col.endswith('_answer_accuracy')]
+    model_names = [col.replace('_answer_accuracy', '') for col in models]
     model_names = [CLEAN_NAMES[col] for col in model_names]
     df.rename(columns=dict(zip(models, model_names)), inplace=True)
     
@@ -536,8 +543,8 @@ def generate_model_barplots(data_path: str, group: str, output_folder: str):
     df = pd.read_csv(data_path, index_col=0)
     df = df[df.index != 'Overall']
     
-    models = [col for col in df.columns if col.endswith('_total_accuracy')]
-    model_names = [col.replace('_total_accuracy', '') for col in models]
+    models = [col for col in df.columns if col.endswith('_answer_accuracy')]
+    model_names = [col.replace('_answer_accuracy', '') for col in models]
     model_names = [CLEAN_NAMES[col] for col in model_names]
     df.rename(columns=dict(zip(models, model_names)), inplace=True)
     
@@ -615,8 +622,8 @@ def generate_barplot(data_path: str, group: str, output_folder: str):
     df = df[df.index != 'Overall']
 
     # Identify model columns and clean their names
-    models = [col for col in df.columns if col.endswith('_total_accuracy')]
-    original_model_ids = [col.replace('_total_accuracy', '') for col in models]
+    models = [col for col in df.columns if col.endswith('_answer_accuracy')]
+    original_model_ids = [col.replace('_answer_accuracy', '') for col in models]
     model_names = [CLEAN_NAMES[model_id] for model_id in original_model_ids]
     df.rename(columns=dict(zip(models, model_names)), inplace=True)
 
@@ -646,7 +653,10 @@ def generate_barplot(data_path: str, group: str, output_folder: str):
         'Molmo-7B-D': '#D62728',  # Red
         'Pangea-7B': '#9467BD',  # Purple
         'Qwen2.5-VL-7B': '#8C564B',  # Brown
-        'Aya-Vision-8B': '#17BECF'
+        'Aya-Vision-8B': '#17BECF',
+        'Qwen2.5-VL-72B': '#e377c2',  # Pink
+        'Qwen2.5-VL-3B':  '#2ca02c',  # Green
+        'Aya-Vision-32B': '#ff7f0e',  # Orange
     }
 
     # Plot closed models
@@ -681,6 +691,8 @@ def generate_barplot(data_path: str, group: str, output_folder: str):
     # Save output
     output_path = f"{output_folder}/accuracy_{group}_bar_split.svg"
     plt.savefig(output_path, format='svg', bbox_inches='tight')
+    output_path = f"{output_folder}/accuracy_{group}_bar_split.png"
+    plt.savefig(output_path, format='png', bbox_inches='tight')
     plt.close()
     
     print(f"Bar chart saved to: {output_path}")
@@ -848,6 +860,8 @@ def scatter_plot_accuracies(csv_file, title, output_folder):
         plt.annotate(row['Model'], (row['SecondRow'], row['FirstRow']),
                      textcoords="offset points", xytext=(5, 5), ha='left', fontsize=9)
     
+    plt.plot([0, 100], [0, 100], color='grey', linestyle='--', linewidth=1)
+
     plt.xlabel(f'{df.index[1]}')
     plt.ylabel(f'{df.index[0]}')
     plt.title(title)
