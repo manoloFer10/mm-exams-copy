@@ -4,7 +4,7 @@ import json
 import os
 import argparse 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:/Users\shepe\AppData/Local/Programs/Tesseract-OCR/tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = '...' # (Path to Tesseract executable)
 from openai import OpenAI
 from PIL import Image
 from tqdm import tqdm
@@ -24,7 +24,7 @@ def parse_args():
     return args
 
 def get_token(provider):
-    with open('tokens_mm_exams.json', 'r') as f:
+    with open('tokens.json', 'r') as f:
         keys = json.load(f)
     
     return keys[provider]
@@ -35,7 +35,7 @@ def load_image_dataset():
     def multimodal_only(example):
         return example["image"]
     
-    dataset = load_dataset('CohereForAI/mumu-exams-stratiefied')['train']
+    dataset = load_dataset('CohereForAI/kaleidoscope')['train']
     dataset = dataset.filter(multimodal_only)
     print(f'Final dataset length: {len(dataset)}')
 
@@ -70,7 +70,7 @@ Exam-Specific Analysis:
 
 - Secondary Details: Note stylistic features (e.g., "black-and-white schematic," "color-coded bars in a graph"), spatial relationships (e.g., "force vectors pointing northwest"), and contextual clues (e.g., axes labels, legends, scales).
 
-- Textual Elements: Explicitly transcribe all visible text (e.g., labels like "Mitochondria," numbers like "5Ω," titles like "Figure 2: Velocity vs. Time").
+- Textual Elements: Explicitly transcribe all visible text (e.g., labels like "Mitochondria," numbers like "5V," titles like "Figure 2: Velocity vs. Time").
 
 Academic Precision:
 
@@ -78,7 +78,7 @@ Academic Precision:
 
 - Diagrams/Charts: Specify type (e.g., "pie chart," "circuit diagram") and components (e.g., "resistor symbol connected to a battery").
 
-- Scientific Relevance: Highlight measurements, units, symbols (e.g., "ΔT = 25°C," "a pulley system with frictionless ropes").
+- Scientific Relevance: Highlight measurements, units, symbols (e.g., "T = 25°C," "a pulley system with frictionless ropes").
 
 Structure & Clarity:
 
@@ -86,12 +86,12 @@ Structure & Clarity:
 
 - Use neutral, objective language. Avoid assumptions unless implied by context (e.g., "a downward arrow labeled 9.8 m/s² likely representing gravitational acceleration").
 
-Output Format:
+**Output Format:**
 
 - Single paragraph (4–6 sentences).
 
 - Example:
-"A physics diagram depicts two blocks on a frictionless inclined plane: Block A (5 kg) is connected via a rope to Block B (3 kg) over a pulley. Angle θ = 30°, with vectors labeled F_normal and F_gravity. A scale beside the plane shows time t = 0s to t = 5s. Text at the bottom reads: ‘Calculate tension in the rope.’ The image is monochrome, with dashed lines indicating motion direction."
+"A physics diagram depicts two blocks on a frictionless inclined plane: Block A (5 kg) is connected via a rope to Block B (3 kg) over a pulley. Angle theta = 30°, with vectors labeled F_normal and F_gravity. A scale beside the plane shows time t = 0s to t = 5s. Text at the bottom reads: ‘Calculate tension in the rope.’ The image is monochrome, with dashed lines indicating motion direction."
 
 Constraints:
 
@@ -182,7 +182,6 @@ def main():
                 json.dump(results, f, indent=2)
             print(f"Ongoing {t} results saved to {output_path}")
 
-    # Save results to file
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
 
