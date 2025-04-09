@@ -166,7 +166,7 @@ def load_and_filter_dataset(
     """
     if is_hf_dataset == 'True':
         print('Loading HF dataset...')
-        dataset = load_from_disk(dataset_name)
+        dataset = load_from_disk(dataset_name) #if fetching directly to HF, should use load_dataset instead.
     else: 
         print('Loading JSON dataset...')
         dataset = load_dataset('json', data_files=dataset_name)['train']
