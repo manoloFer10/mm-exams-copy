@@ -13,9 +13,6 @@ from transformers import (
 
 from vllm import LLM, SamplingParams
 
-# from deepseek_vl2.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-# from deepseek_vl2.utils.io import load_pil_images
-
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
@@ -23,8 +20,6 @@ from anthropic import Anthropic
 from cohere import ClientV2
 
 from tenacity import retry, stop_after_attempt, wait_exponential
-
-# from llava.model.builder import load_pretrained_model
 
 from model_zoo import (
     create_qwen_prompt,
@@ -43,6 +38,7 @@ SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
     "qwen2.5-72b",
+    "qwen2.5-32b",
     "qwen2.5-7b",
     "qwen2.5-3b",
     "gemini-1.5-pro",
@@ -86,20 +82,7 @@ def initialize_model(
     """
     Initialize the model and processor/tokenizer based on the model name.
     """
-    if model_name == "qwen2-7b":
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_path,
-            # torch_dtype=torch.float16,
-            temperature=TEMPERATURE,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            do_sample=True,
-            # attn_implementation="flash_attention_2",
-            local_files_only=True,
-        )
-        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
-
-    elif model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-72b"]:
+    if model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-32b", "qwen2.5-72b"]:
         model = LLM(
             model_path,
             tensor_parallel_size=ngpu,
@@ -129,24 +112,10 @@ def initialize_model(
         processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
         processor.patch_size = 14
         model.resize_token_embeddings(len(processor.tokenizer))
-    elif model_name == "deepseek":
-        processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            model_path, local_files_only=True
-        )
-
-        model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            temperature=0.7,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            do_sample=True,
-            local_files_only=True,
-            trust_remote_code=True,
-        ).eval()
-    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+    elif model_name == "gpt-4o":
         model = OpenAI(api_key=api_key)
         processor = None
-    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
+    elif model_name == "gemini-1.5-pro":
         model = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -184,22 +153,19 @@ def query_model(
     if model_name in [
         "qwen2-7b",
         "qwen2.5-72b",
+        "qwen2.5-32b",
         "qwen2.5-7b",
         "qwen2.5-3b",
     ]:
         answer = query_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "pangea":
         answer = query_pangea(model, processor, prompt, images, device)
-    elif model_name == "deepseek":
-        answer = query_deepseek(model, processor, prompt, max_tokens)
     elif model_name == "molmo":
         answer = query_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "aya-vision":
         answer = query_aya(model, prompt, 0.3, 1024)
     elif model_name in [
         "gpt-4o",
-        "gpt-4o-mini",
-        "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
         answer = query_openai(model, model_name, prompt, temperature, max_tokens)
@@ -208,38 +174,9 @@ def query_model(
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-    return answer, None  # format_answer(answer)
-
-
-# def query_deepseek(model, processor, prompt, max_tokens=MAX_TOKENS):
-
-#     pil_images = load_pil_images(prompt[1])
-#     prepare_inputs = processor(
-#         system_prompt=prompt[0],
-#         conversations=prompt[1],
-#         images=pil_images,
-#         force_batchify=True,
-#     ).to(model.device)
-#     # run image encoder to get the image embeddings
-#     inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
-
-#     # run the model to get the response
-#     outputs = model.language.generate(
-#         inputs_embeds=inputs_embeds,
-#         attention_mask=prepare_inputs.attention_mask,
-#         pad_token_id=processor.tokenizer.eos_token_id,
-#         bos_token_id=processor.tokenizer.bos_token_id,
-#         eos_token_id=processor.tokenizer.eos_token_id,
-#         max_new_tokens=max_tokens,
-#         do_sample=True,
-#         use_cache=True,
-#         return_dict_in_generate=True,
-#         output_scores=False,
-#     )
-#     answer = processor.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
-#     return answer
-
-
+    return answer, None  
+  
+  
 def query_molmo(model, processor, prompt: list, images: list, max_tokens):
     if prompt == "multi-image":
         print("Question was multi-image, molmo does not support multi-image inputs.")
@@ -343,46 +280,6 @@ def query_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
     return response
 
 
-def query_qwen2(
-    model,
-    processor,
-    prompt: list,
-    images: list,
-    device="cuda",
-    max_tokens=MAX_TOKENS,
-):
-    if images is not None:
-        try:
-            images = [Image.open(image).resize((224, 224)) for image in images]
-        except:
-            print(images)
-            images = None
-
-    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
-
-    inputs = processor(
-        text=[text_prompt],
-        images=images,
-        return_tensors="pt",
-        padding=True,
-    ).to(device)
-
-    # Generate response
-    with torch.inference_mode():
-        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
-        generated_ids = [
-            output_ids[len(input_ids) :]
-            for input_ids, output_ids in zip(inputs.input_ids, output_ids)
-        ]
-
-    response = processor.batch_decode(
-        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
-    )
-
-    torch.cuda.empty_cache()
-    return response[0]
-
-
 def query_pangea(
     model, processor, prompt, images, device="cuda", max_tokens=MAX_TOKENS
 ):
@@ -421,6 +318,7 @@ def generate_prompt(
     method: str = "zero-shot",
     experiment: str = 'normal'
 ):
+
     if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
         return create_qwen_prompt_vllm(question, method, few_shot_samples, experiment)
     elif model_name == "molmo":
@@ -433,8 +331,6 @@ def generate_prompt(
         return create_aya_prompt(question, method, few_shot_samples)
     elif model_name in [
         "gpt-4o",
-        "gpt-4o-mini",
-        "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
         return parse_openai_input(
@@ -446,9 +342,7 @@ def generate_prompt(
         )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
-            question["question"],
-            question["image"],
-            question["options"],
+            question,
             lang,
             instruction,
             method,
@@ -558,12 +452,15 @@ def parse_openai_input(
 
 
 def parse_anthropic_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
+    question, lang, instruction, few_shot_setting
 ):
     """
     Outputs: conversation dictionary supported by Anthropic.
     """
     system_message = {"role": "system", "content": instruction}
+    question_text = question['question']
+    question_image = question['image']
+    options_list = question['options']
 
     def resize_and_encode_image(image_path):
         try:
@@ -647,43 +544,43 @@ def parse_anthropic_input(
     return messages, None  # image paths not expected for openai client.
 
 
-def extract_answer_from_tags(answer: str):
-    """
-    Searchs for the answer between tags <Answer>.
+# def extract_answer_from_tags(answer: str):
+#     """
+#     Searchs for the answer between tags <Answer>.
 
-    Returns: A zero-indexed integer corresponding to the answer.
-    """
-    pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
-    match = re.search(pattern, answer, re.IGNORECASE)
+#     Returns: A zero-indexed integer corresponding to the answer.
+#     """
+#     pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
+#     match = re.search(pattern, answer, re.IGNORECASE)
 
-    if match:
-        # Extract and convert answer letter
-        letter = match.group(1).upper()
-        election = ord(letter) - ord("A")
+#     if match:
+#         # Extract and convert answer letter
+#         letter = match.group(1).upper()
+#         election = ord(letter) - ord("A")
 
-        # Extract reasoning by removing answer tag section
-        start, end = match.span()
-        reasoning = answer.strip()
-        # Clean multiple whitespace
-        reasoning = re.sub(r"\s+", " ", reasoning)
-    elif len(answer) == 1:
-        reasoning = answer
-        if "A" <= answer <= "Z":
-            # Convert letter to zero-indexed number
-            election = ord(answer) - ord("A")
-        elif "1" <= answer <= "9":
-            # Convert digit to zero-indexed number
-            election = int(answer) - 1
-        else:
-            election = answer
-    else:
-        # Error handling cases
-        election = "No valid answer tag found"
-        if re.search(r"<ANSWER>.*?</ANSWER>", answer):
-            election = "Answer tag exists but contains invalid format"
-        reasoning = answer.strip()
+#         # Extract reasoning by removing answer tag section
+#         start, end = match.span()
+#         reasoning = answer.strip()
+#         # Clean multiple whitespace
+#         reasoning = re.sub(r"\s+", " ", reasoning)
+#     elif len(answer) == 1:
+#         reasoning = answer
+#         if "A" <= answer <= "Z":
+#             # Convert letter to zero-indexed number
+#             election = ord(answer) - ord("A")
+#         elif "1" <= answer <= "9":
+#             # Convert digit to zero-indexed number
+#             election = int(answer) - 1
+#         else:
+#             election = answer
+#     else:
+#         # Error handling cases
+#         election = "No valid answer tag found"
+#         if re.search(r"<ANSWER>.*?</ANSWER>", answer):
+#             election = "Answer tag exists but contains invalid format"
+#         reasoning = answer.strip()
 
-    return reasoning, election
+#     return reasoning, election
 
 
 def fetch_cot_instruction(lang: str) -> str:
