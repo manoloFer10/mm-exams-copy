@@ -43,3 +43,16 @@ python main.py \
 # --api_key \
 # --resume outputs/zero-shot/model_aya-vision/results_3.json \
 # --output_name _3
+
+
+#Captionning-ocr experiment
+# python main.py \
+# --model qwen2.5-7b \
+# --dataset /leonardo/home/userexternal/mfernan1/projects/mm-exams/dataset/captions_ocr.json \
+# --is_hf_dataset False \
+# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
+# --method zero-shot \
+# --experiment captioned \
+# --output_name _captioned \
+# --subset multimodal \
+# --resume outputs/zero-shot/model_qwen2.5-7b/results_captioned.json
