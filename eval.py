@@ -10,7 +10,6 @@ from eval_utils import (
     perform_complete_evaluation,
     perform_metrics,
     perform_descriptive_statistics,
-    perform_experiments,
     perform_plots
 )
 
