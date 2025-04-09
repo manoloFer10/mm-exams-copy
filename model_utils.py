@@ -1,12 +1,7 @@
-import base64
 import torch
 import re
-from io import BytesIO
 from transformers import (
-    Qwen2VLForConditionalGeneration,
-    Qwen2_5_VLForConditionalGeneration,
     AutoProcessor,
-    AutoModelForCausalLM,
     GenerationConfig,
     LlavaNextForConditionalGeneration,
 )
@@ -22,12 +17,12 @@ from cohere import ClientV2
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from model_zoo import (
-    create_qwen_prompt,
     create_pangea_prompt,
-    create_deepseek_prompt,
     create_qwen_prompt_vllm,
     create_aya_prompt,
     create_molmo_prompt_vllm,
+    create_anthropic_prompt,
+    create_openai_prompt
 )
 
 
@@ -36,18 +31,15 @@ MAX_TOKENS = 1024
 
 SUPPORTED_MODELS = [
     "gpt-4o",
-    "qwen2-7b",
     "qwen2.5-72b",
     "qwen2.5-32b",
     "qwen2.5-7b",
     "qwen2.5-3b",
     "gemini-1.5-pro",
-    "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
     "molmo",
-    "deepseek",
     "aya-vision",
-]  # "claude-3-5-haiku-latest" haiku does not support image input
+] 
 
 
 INSTRUCTIONS_COT = {
@@ -222,6 +214,7 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
     return output_text
 
 
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
     system_message = prompt[0]["content"]
@@ -238,6 +231,7 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     return output_text
 
 
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def query_aya(client, prompt, temperature, max_tokens):
     response = client.chat(
         model="c4ai-aya-vision-32b",
@@ -325,15 +319,10 @@ def generate_prompt(
         return create_molmo_prompt_vllm(question, method, few_shot_samples)
     elif model_name == "pangea":
         return create_pangea_prompt(question, method, few_shot_samples)
-    elif model_name == "deepseek":
-        return create_deepseek_prompt(question, method, few_shot_samples)
     elif model_name == "aya-vision":
         return create_aya_prompt(question, method, few_shot_samples)
-    elif model_name in [
-        "gpt-4o",
-        "gemini-1.5-pro",
-    ]:
-        return parse_openai_input(
+    elif model_name in ["gpt-4o", "gemini-1.5-pro"]:
+        return create_openai_prompt(
             question,
             lang,
             instruction,
@@ -341,7 +330,7 @@ def generate_prompt(
             experiment
         )
     elif model_name == "claude-3-5-sonnet-latest":
-        return parse_anthropic_input(
+        return create_anthropic_prompt(
             question,
             lang,
             instruction,
@@ -350,198 +339,6 @@ def generate_prompt(
     else:
         raise ValueError(f"Unsupported model for parsing inputs: {model_name}")
 
-
-def parse_openai_input(
-    question, lang, instruction, few_shot_setting, experiment
-):
-    """
-    Outputs: conversation dictionary supported by OpenAI.
-    """
-    system_message = {"role": "system", "content": instruction}
-    question_text = question['question']
-    question_image = question['image']
-    options_list = question['options']
-    def encode_image(image_path):
-        try:
-            with open(image_path, "rb") as image_file:
-                binary_data = image_file.read()
-                base_64_encoded_data = base64.b64encode(binary_data)
-                base64_string = base_64_encoded_data.decode("utf-8")
-                return base64_string
-        except Exception as e:
-            raise TypeError(f"Image {image_path} could not be encoded. {e}")
-
-    if question_image:
-        base64_image = encode_image(question_image)
-        if experiment == 'captioning':
-            caption = question['image_caption']
-            ocr = question['image_ocr']
-            question = [
-                {"type": "text", "text": question_text},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64_image}",
-                        "detail": "low",
-                    },
-                },
-                {"type": "text", "text": f'Caption: {caption} \n OCR: {ocr}'}
-            ]
-        else:
-            question = [
-                {"type": "text", "text": question_text},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64_image}",
-                        "detail": "low",
-                    },
-                }
-            ]
-    else:
-        question = [{"type": "text", "text": question_text}]
-
-    # Parse options. Handle options with images carefully by inclusion in the conversation.
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {
-        "type": "image_url",
-        "image_url": {"url": "data:image/jpeg;base64,{base64_image}", "detail": "low"},
-    }
-
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            parsed_options.append(new_text_option)
-            parsed_options.append(
-                new_image_option["image_url"]["url"].format(
-                    base64_image=encode_image(option)
-                )
-            )
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(new_text_option)
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    return messages, None  # image paths not expected for openai client.
-
-
-def parse_anthropic_input(
-    question, lang, instruction, few_shot_setting
-):
-    """
-    Outputs: conversation dictionary supported by Anthropic.
-    """
-    system_message = {"role": "system", "content": instruction}
-    question_text = question['question']
-    question_image = question['image']
-    options_list = question['options']
-
-    def resize_and_encode_image(image_path):
-        try:
-            with Image.open(image_path) as img:
-                # Resize the image to 512x512 using an appropriate resampling filter
-                resized_img = img.resize((512, 512), Image.LANCZOS)
-
-                # Save the resized image to a bytes buffer in PNG format
-                buffer = BytesIO()
-                resized_img.save(buffer, format="PNG")
-                buffer.seek(0)
-
-                # Encode the image in base64
-                base64_encoded = base64.b64encode(buffer.read()).decode("utf-8")
-                return base64_encoded
-        except Exception as e:
-            raise TypeError(f"Image {image_path} could not be processed. {e}")
-
-    if question_image:
-        base64_image = resize_and_encode_image(question_image)
-        question = [
-            {"type": "text", "text": question_text},
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": base64_image,
-                },
-            },
-        ]
-    else:
-        question = [{"type": "text", "text": question_text}]
-
-    # Parse options. Handle options with images carefully by inclusion in the conversation.
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": resize_and_encode_image(option),
-                },
-            }
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            parsed_options.append(new_text_option)
-            parsed_options.append(new_image_option)
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(new_text_option)
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    return messages, None  # image paths not expected for openai client.
 
 
 # def extract_answer_from_tags(answer: str):
@@ -592,10 +389,3 @@ def fetch_cot_instruction(lang: str) -> str:
     else:
         raise ValueError(f"{lang} language code not in INSTRUCTIONS_COT")
 
-
-def fetch_few_shot_examples(lang):
-    # TODO: write function. Should output a list of dicts in the conversation format expected.
-    # I reckon we should do as parse_client_input with these. Add few-shot image examples regarding the format the input model expects.
-    raise NotImplementedError(
-        "The function to fetch few_shot examples is not yet implemented, but should return the few shot examples regarding that language."
-    )
