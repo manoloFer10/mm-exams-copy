@@ -32,7 +32,7 @@ python main.py \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset/dataset_0.hf/ \
 --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/Qwen2.5-VL-7B-Instruct \
 --method zero-shot \
---output_name _0
+# --output_name _0 \
 --subset multimdoal \
 --output_name _no-image
 
