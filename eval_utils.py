@@ -317,14 +317,15 @@ def perform_plots(df_dataset, output_folder):
     os.makedirs(output_folder, exist_ok=True)
 
     if os.path.exists(f'{origin_folder}/metrics'):
-        # generate_barplot(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'Language', output_folder)
-        # generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
-        # generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
-        # generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
-        # generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
-        # generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
-        # scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'Language', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
+        generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
+        generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
         error_heatmap(f'{origin_folder}/metrics/language/error_rate.csv', output_folder)
+        scaling_results(df_dataset, output_folder)
 
     else:
         print('No metrics results folder detected... passing to statistics plots.')
@@ -644,3 +645,7 @@ def error_heatmap(csv_file, output_folder):
     plt.savefig(f"{output_folder}/error_heatmap.png", format="png", dpi=300)
     plt.savefig(f"{output_folder}/error_heatmap.svg", format="svg")
     plt.show()
+
+
+def scaling_results(df, output_folder):
+    ...
