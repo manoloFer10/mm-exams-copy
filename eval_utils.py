@@ -132,7 +132,7 @@ def perform_metrics(df_dataset, output_folder):
     if 'language' in df_dataset.columns:
         df_dataset['language'] = df_dataset['language'].map(code2lang)
         df_dataset['script'] = df_dataset['language'].map(LATIN_SCRIPT_MAP)
-        df_dataset['englishness'] = df_dataset['language'].map(ENGLISH_MAP)
+        df_dataset['is_english'] = df_dataset['language'].map(ENGLISH_MAP)
         df_dataset['resources'] = df_dataset['language'].map(RESOURCE_LEVEL_MAP)
 
     model_columns = [col for col in df_dataset.columns if col.startswith('prediction_by_')]
@@ -151,29 +151,15 @@ def perform_metrics(df_dataset, output_folder):
         'general_category_en', 
         'image_type', 
         'script', 
-        'englishness', 
+        'is_english', 
         'resources',
-        #'regionality'
         ]
     
     for group in attributes:
         group_by_and_score(df_dataset, group, model_names, output_folder)
 
-    # Calculate accuracies by language and category for each model.
-    # for model in model_names:
-    #     accuracy_df = df_dataset[model] == df_dataset['answer']
-
-    #     accuracies = (
-    #         accuracy_df.groupby([df_dataset['language'], df_dataset['category_en']])
-    #         .mean()
-    #         .unstack(fill_value=0) 
-    #     )
-    #     file_name = model + "_accuracy_language&category.csv"
-    #     output_file = output_folder +'/' + file_name
-    #     accuracies.to_csv(output_file)
 
     # Answer distribution
-
     if 'answer' in df_dataset.columns:
         answer_stats = calculate_answer_distribution(df_dataset, 'answer')
         answer_stats.columns = ['correct answer counts', 'proportion correct answer']
@@ -209,32 +195,25 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
         metrics = {}
         total = len(subset)
         for model in model_names:
-
-
-            # Create a boolean mask for valid predictions.
             valid_mask = subset[model].isin(VALID_VALUES)
             valid_count = valid_mask.sum()
             error_count = total - valid_count
 
-            # Calculate accuracy only on valid predictions.
-            if valid_count > 0:
-                correct_count = (subset.loc[valid_mask, model] == subset.loc[valid_mask, 'answer']).sum()
-                answer_accuracy = round(correct_count * 100 / valid_count, 1)
-            else:
-                answer_accuracy = np.nan
+            correct_count = (subset.loc[valid_mask, model] == subset.loc[valid_mask, 'answer']).sum()
 
-            # Error rate: fraction of predictions that are invalid.
+            answer_accuracy = round(correct_count * 100 / valid_count, 1)
             error_rate = round(error_count * 100 / total, 1)
             total_accuracy = round(correct_count * 100 / total, 1)
 
-            # Save metrics with descriptive column names.
+            # Save metrics
             metrics[f'{model}_total_accuracy'] = total_accuracy
             metrics[f'{model}_answer_accuracy'] = answer_accuracy
             metrics[f'{model}_error_rate'] = error_rate
+            metrics[f'{model}_error_count'] = error_count
 
         results[grp] = metrics
 
-    # Also compute overall metrics (across the entire dataset).
+    # Overall (across the entire dataset))
     overall_metrics = {}
     total_overall = len(df_dataset)
     for model in model_names:
@@ -253,31 +232,27 @@ def group_by_and_score(df_dataset, group, model_names, output_folder):
         overall_metrics[f'{model}_total_accuracy'] = total_accuracy
         overall_metrics[f'{model}_answer_accuracy'] = answer_accuracy
         overall_metrics[f'{model}_error_rate'] = error_rate
+        overall_metrics[f'{model}_error_count'] = error_count
 
     results['Overall'] = overall_metrics
 
-    # Convert the results to a DataFrame and transpose (so rows are groups).
     results_df = pd.DataFrame(results).T
 
-    # Split the DataFrame into three separate ones based on metric type.
     total_acc_df = results_df[[col for col in results_df.columns if col.endswith('total_accuracy')]]
     answer_acc_df = results_df[[col for col in results_df.columns if col.endswith('answer_accuracy')]]
-    error_rate_df = results_df[[col for col in results_df.columns if col.endswith('error_rate')]]
-
-    # Create file paths for each metric.
+    error_rate_df = results_df[[col for col in results_df.columns if col.endswith('error_rate') or col.endswith('error_count')]]
     
     total_acc_file = os.path.join(output_folder, f"{group}/total_accuracy.csv")
     answer_acc_file = os.path.join(output_folder, f"{group}/answer_accuracy.csv")
     error_rate_file = os.path.join(output_folder, f"{group}/error_rate.csv")
     all_results_file = os.path.join(output_folder, f"{group}/all_results.csv")
 
-    # Ensure that the directory exists.
     os.makedirs(os.path.dirname(total_acc_file), exist_ok=True)
     os.makedirs(os.path.dirname(answer_acc_file), exist_ok=True)
     os.makedirs(os.path.dirname(error_rate_file), exist_ok=True)
     os.makedirs(os.path.dirname(all_results_file), exist_ok=True)
 
-    # Save each DataFrame to its corresponding CSV file.
+    # Save each DataFrame.
     total_acc_df.to_csv(total_acc_file, index=True)
     answer_acc_df.to_csv(answer_acc_file, index=True)
     error_rate_df.to_csv(error_rate_file, index=True)
@@ -308,18 +283,8 @@ def perform_descriptive_statistics(df_dataset, output_folder):
             freq_table = df_dataset[field].value_counts().reset_index()
             freq_table.columns = [field, 'counts']
             freq_table['proportion'] = freq_table['counts'] / freq_table['counts'].sum()
-             # Map language codes to names if the column is 'language'
-            # if field == 'language':
-            #     freq_table['full_lang'] = freq_table[field].map(code2lang)
             freq_table.to_csv(output_folder+ f"/{field}_frequency.csv", index=False)
 
-
-    #  Length Statistics. Manu: do we really need these??
-    # text_fields = ['question', 'options']
-    # for field in text_fields:
-    #     if field in df_dataset.columns:
-    #         length_stats = df_dataset[field].dropna().apply(len).describe()
-    #         length_stats.to_csv(os.path.join(output_folder, f"{field}_length_statistics.csv"), header=True)
 
     # image_type, image_information, level, general_category_en and category_en distributions per language
     for field in categorical_fields[1:]:
@@ -352,13 +317,14 @@ def perform_plots(df_dataset, output_folder):
     os.makedirs(output_folder, exist_ok=True)
 
     if os.path.exists(f'{origin_folder}/metrics'):
-        generate_barplot(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'Language', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
-        generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
-        generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
-        generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
-        scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
+        # generate_barplot(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'Language', output_folder)
+        # generate_barplot(f'{origin_folder}/metrics/level/answer_accuracy.csv', 'Exam Level', output_folder)
+        # generate_barplot(f'{origin_folder}/metrics/image_type/answer_accuracy.csv', 'Image Type', output_folder)
+        # generate_barplot(f'{origin_folder}/metrics/category_en/answer_accuracy.csv', 'Subject', output_folder)
+        # generate_model_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        # generate_group_barplots(f'{origin_folder}/metrics/language/answer_accuracy.csv', 'language', output_folder)
+        # scatter_plot_accuracies(f'{origin_folder}/metrics/script/answer_accuracy.csv', 'Latin vs Non-Latin (script) Performance', output_folder)
+        error_heatmap(f'{origin_folder}/metrics/language/error_rate.csv', output_folder)
 
     else:
         print('No metrics results folder detected... passing to statistics plots.')
@@ -603,7 +569,6 @@ def generate_group_barplots(data_path: str, group: str, output_folder: str):
 
 def scatter_plot_accuracies(csv_file, title, output_folder):
     
-    # Read the CSV file into a DataFrame
     df = pd.read_csv(csv_file, index_col=0)
     
     # Ensure there are at least two rows to compare
@@ -648,4 +613,34 @@ def scatter_plot_accuracies(csv_file, title, output_folder):
     plt.savefig(f"{output_folder}/{title}.png", format="png", dpi=300)
     plt.savefig(f"{output_folder}/{title}.svg", format="svg")
     
+    plt.show()
+
+def error_heatmap(csv_file, output_folder):
+    df = pd.read_csv(csv_file, index_col=0)
+    df = df[df.index != 'Overall']
+    
+    models = [col for col in df.columns if col.endswith('_error_count')]
+    model_names = [col.replace('_error_count', '') for col in models]
+    model_names = [CLEAN_NAMES[col] for col in model_names]
+    df.rename(columns=dict(zip(models, model_names)), inplace=True)
+    df = df.T
+    df = df.reindex(model_names)
+
+    plt.figure(figsize=(12, 4))  
+    
+    sns.heatmap(df, annot=True, fmt=".0f", cmap="viridis_r", linewidths=0.5, 
+                cbar_kws={'label': 'Unanswered Questions'}, 
+                annot_kws={"size": 8})  
+
+    
+    plt.yticks(rotation=0, fontsize=8)  
+    plt.xticks(fontsize=9)  
+
+    plt.title("Distribution of Unanswered Questions Across Languages and Models", fontsize=12)
+    plt.xlabel("Language", fontsize=10)
+    plt.ylabel("Model", fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(f"{output_folder}/error_heatmap.png", format="png", dpi=300)
+    plt.savefig(f"{output_folder}/error_heatmap.svg", format="svg")
     plt.show()
