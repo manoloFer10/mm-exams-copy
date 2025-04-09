@@ -27,12 +27,6 @@ export PYTHONPATH=$(pwd)
 # --method zero-shot \
 # --output_name _0
 
-# python main.py \
-# --model deepseek \
-# --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/stratified_dataset.hf/ \
-# --model_path /leonardo_work/EUHPC_D12_071/projects/mm-exams/models/deepseek-vl2-tiny \
-# --method zero-shot
-
 python main.py \
 --model qwen2.5-32b \
 --dataset /leonardo_work/EUHPC_D12_071/projects/mm-exams/dataset/dataset_0.hf/ \
