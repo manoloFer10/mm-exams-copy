@@ -271,7 +271,7 @@ def evaluate_model(args):
         )
         question[f"prediction_by_{args.model}"] = prediction
         question[f"reasoning_by_{args.model}"] = reasoning
-        #question["prompt_used"] = prompt
+        question["prompt_used"] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)
 
