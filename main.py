@@ -1,6 +1,6 @@
 import argparse
 import numpy as np
-from datasets import load_from_disk, Dataset
+from datasets import load_from_disk, load_dataset, Dataset
 import os
 import random
 import json
@@ -17,15 +17,15 @@ from model_utils import (
     MAX_TOKENS,
 )
 
-# IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
-IMAGE_ROOT = "./"
+#IMAGE_ROOT = "/leonardo_work/EUHPC_D12_071/projects/mm-exams/"
+IMAGE_ROOT = ""
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--num_samples",
-        type=int,
+        type=str,
         default=None,
         help="number of samples to test",
     )
@@ -34,6 +34,12 @@ def parse_args():
         type=str,
         default="zero-shot",
         help="[few-shot, zero-shot]",
+    )
+    parser.add_argument(
+        "--experiment",
+        type=str,
+        default="normal",
+        help="[normal, captioned]",
     )
     parser.add_argument(
         "--seed",
@@ -52,6 +58,11 @@ def parse_args():
     )
     parser.add_argument(
         "--dataset", type=str, required=True, help="dataset name or path"
+    )
+    parser.add_argument(
+        "--is_hf_dataset",
+        type=str,
+        required=True
     )
     parser.add_argument(
         "--model",
@@ -143,8 +154,9 @@ def filter_ready(dataset, results):
 
 def load_and_filter_dataset(
     dataset_name: str,
+    is_hf_dataset: str,
     lang: str,
-    num_samples: int,
+    num_samples: str,
     method: str,
     subset: str,
     results: list = [],
@@ -152,8 +164,12 @@ def load_and_filter_dataset(
     """
     Load and filter the dataset based on language and number of samples.
     """
-    # TODO: ADD OTHER FILTERS
-    dataset = load_from_disk(dataset_name)
+    if is_hf_dataset == 'True':
+        print('Loading HF dataset...')
+        dataset = load_from_disk(dataset_name)
+    else: 
+        print('Loading JSON dataset...')
+        dataset = load_dataset('json', data_files=dataset_name)['train']
     dataset = dataset.map(map_image_path)
     few_shot_examples = defaultdict(list)
     if method == "few-shot":
@@ -165,7 +181,7 @@ def load_and_filter_dataset(
     if results:
         dataset = filter_ready(dataset, results)
     if num_samples is not None:
-        dataset = dataset.select(range(num_samples))
+        dataset = dataset.select(range(int(num_samples)))
     if subset == "multimodal":
         dataset = dataset.filter(lambda sample: sample["image"] is not None)
     return dataset, few_shot_examples
@@ -218,7 +234,8 @@ def evaluate_model(args):
     # Load dataset
     dataset, few_shot_samples = load_and_filter_dataset(
         args.dataset,
-        args.selected_langs,
+        args.is_hf_dataset, 
+        args.selected_langs,  
         args.num_samples,
         args.method,
         args.subset,
@@ -239,6 +256,7 @@ def evaluate_model(args):
             instruction=system_message,
             few_shot_samples=few_shot_samples,
             method=args.method,
+            experiment= args.experiment
         )
 
         # Query model
@@ -251,9 +269,9 @@ def evaluate_model(args):
             temperature=TEMPERATURE,
             max_tokens=MAX_TOKENS,
         )
-        question["prediction"] = prediction
-        question["reasoning"] = reasoning
-        question["prompt_used"] = prompt
+        question[f"prediction_by_{args.model}"] = prediction
+        question[f"reasoning_by_{args.model}"] = reasoning
+        #question["prompt_used"] = prompt
         result_metadata = question.copy()
         results.append(result_metadata)
 

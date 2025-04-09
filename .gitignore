@@ -1,8 +1,7 @@
 test data/
 eval_results/
-run.ps1
-run_*
-results/
+*.ps1
+*results*
 .DS_Store
 outputs/
 slurm/
@@ -20,3 +19,8 @@ LlaVA-NeXT/
 batch_*
 models/
 image_data/
+recovering_answers/
+random_experiments/
+recategorization/
+temps/
+culture_data/
