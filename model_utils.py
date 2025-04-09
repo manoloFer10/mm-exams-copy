@@ -8,38 +8,46 @@ from transformers import (
     AutoProcessor,
     AutoModelForCausalLM,
     GenerationConfig,
-)
-from qwen_vl_utils import (
-    process_vision_info,
+    LlavaNextForConditionalGeneration,
 )
 
-# from deepseek_vl.models import DeepseekVLV2Processor, DeepseekVLV2ForCausalLM
-# from deepseek_vl.utils.io import load_pil_images
+from vllm import LLM, SamplingParams
 
 from pathlib import Path
 from PIL import Image
 from openai import OpenAI
 from anthropic import Anthropic
-from torch.cuda.amp import autocast
-from tenacity import retry, stop_after_attempt, wait_exponential
-from llava.model.builder import load_pretrained_model
+from cohere import ClientV2
 
-from model_zoo import create_qwen2_prompt
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+from model_zoo import (
+    create_qwen_prompt,
+    create_pangea_prompt,
+    create_deepseek_prompt,
+    create_qwen_prompt_vllm,
+    create_aya_prompt,
+    create_molmo_prompt_vllm,
+)
 
 
 TEMPERATURE = 0.7
-MAX_TOKENS = 512
+MAX_TOKENS = 1024
 
 SUPPORTED_MODELS = [
     "gpt-4o",
     "qwen2-7b",
+    "qwen2.5-72b",
+    "qwen2.5-32b",
     "qwen2.5-7b",
+    "qwen2.5-3b",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
     "claude-3-5-sonnet-latest",
     "molmo",
-    "deepseekVL2-small",
-] 
+    "deepseek",
+    "aya-vision",
+]  # "claude-3-5-haiku-latest" haiku does not support image input
 
 
 INSTRUCTIONS_COT = {
@@ -65,83 +73,49 @@ INSTRUCTIONS_COT = {
 
 
 def initialize_model(
-    model_name: str, model_path: str, api_key: str = None, device: str = "cuda"
+    model_name: str,
+    model_path: str,
+    api_key: str = None,
+    device: str = "cuda",
+    ngpu=1,
 ):
     """
     Initialize the model and processor/tokenizer based on the model name.
     """
-    if model_name == "qwen2-7b":
-
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            Path(model_path) / "model",
-            # torch_dtype=torch.float16,
-            temperature=TEMPERATURE,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            # attn_implementation="flash_attention_2",
-            local_files_only=True,
-        )
-        processor = AutoProcessor.from_pretrained(
-            Path(model_path) / "processor", local_files_only=True
-        )
-
-    elif model_name == "qwen2.5-7b":
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    if model_name in ["qwen2.5-7b", "qwen2.5-3b", "qwen2.5-32b", "qwen2.5-72b"]:
+        model = LLM(
             model_path,
-            temperature=TEMPERATURE,
-            device_map=device,
-            torch_dtype=torch.bfloat16,
-            local_files_only=True,
+            tensor_parallel_size=ngpu,
+            max_model_len=8192,
         )
         processor = AutoProcessor.from_pretrained(
             model_path,
+            use_fast=True,
             local_files_only=True,
         )
-
-    elif model_name == "deepseekVL2-small":
-        model_path = "deepseek-ai/deepseek-vl2-small"
-        processor: DeepseekVLV2Processor = DeepseekVLV2Processor.from_pretrained(
-            model_path, 
-            local_files_only=True
-        )
-
-        model: DeepseekVLV2ForCausalLM = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            trust_remote_code=True,
-            temperature=TEMPERATURE,
-            device_map="auto",
-            torch_dtype=torch.bfloat16,
-            local_files_only=True,
-        ).eval()
 
     elif model_name == "molmo":
-        processor = AutoProcessor.from_pretrained(
-            model_path,
+        model = LLM(
+            model=model_path,
             trust_remote_code=True,
-            torch_dtype="auto",
-            device_map="auto",
-            local_files_only=True,
+            dtype="bfloat16",
+            max_model_len=4096,
         )
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            trust_remote_code=True,
-            temperature=TEMPERATURE,
-            do_sample=True,
-            device_map=device,
-            local_files_only=True,
-        ).eval()
+        processor = None
 
     elif model_name == "pangea":
-        model_name = "Pangea-7B-qwen"
-        args = {"multimodal": True}
-        tokenizer, model, image_processor, _ = load_pretrained_model(
-            model_path, None, model_name, **args
-        )
-        processor = {"tokenizer": tokenizer, "image_processor": processor}
-    elif model_name in ["gpt-4o", "gpt-4o-mini"]:
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            model_path,
+            torch_dtype=torch.float16,
+            local_files_only=True,
+        ).to(device)
+        processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
+        processor.patch_size = 14
+        model.resize_token_embeddings(len(processor.tokenizer))
+    elif model_name == "gpt-4o":
         model = OpenAI(api_key=api_key)
         processor = None
-    elif model_name in ["gemini-2.0-flash-exp", "gemini-1.5-pro"]:
+    elif model_name == "gemini-1.5-pro":
         model = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -149,6 +123,9 @@ def initialize_model(
         processor = None
     elif model_name == "claude-3-5-sonnet-latest":
         model = Anthropic(api_key=api_key)
+        processor = None
+    elif model_name == "aya-vision":
+        model = ClientV2(api_key=api_key)
         processor = None
     else:
         raise NotImplementedError(
@@ -173,80 +150,46 @@ def query_model(
     """
     Query the model based on the model name.
     """
-    if model_name == "qwen2-7b":  # ERASE: should erase after 2.5 works well
-        answer = query_qwen2(model, processor, prompt, images, device)
-
-    elif model_name == "qwen2.5-7b":
-        answer = query_qwen25(model, processor, prompt, device, max_tokens)
+    if model_name in [
+        "qwen2-7b",
+        "qwen2.5-72b",
+        "qwen2.5-32b",
+        "qwen2.5-7b",
+        "qwen2.5-3b",
+    ]:
+        answer = query_vllm(model, processor, prompt, images, max_tokens)
     elif model_name == "pangea":
-        # Add pangea querying logic
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
-    elif model_name == "deepseekVL2-small":
-        answer = query_deepseek(model, processor, prompt, max_tokens)
+        answer = query_pangea(model, processor, prompt, images, device)
     elif model_name == "molmo":
-        answer = query_molmo(model, processor, prompt, images, max_tokens)
+        answer = query_vllm(model, processor, prompt, images, max_tokens)
+    elif model_name == "aya-vision":
+        answer = query_aya(model, prompt, 0.3, 1024)
     elif model_name in [
         "gpt-4o",
-        "gpt-4o-mini",
-        "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
         answer = query_openai(model, model_name, prompt, temperature, max_tokens)
 
     elif model_name == "claude-3-5-sonnet-latest":
         answer = query_anthropic(model, model_name, prompt, temperature, max_tokens)
-    elif model_name == "maya":
-        # Add Maya-specific parsing
-        raise NotImplementedError(f"Model {model_name} not implemented for querying.")
     else:
         raise ValueError(f"Unsupported model: {model_name}")
-
-    return format_answer(answer)
-
-
-def query_pangea():
-    pass
-
-
-def query_deepseek(model, processor, prompt: list, max_tokens=MAX_TOKENS):
-    instruction = prompt[0]
-    conversation = prompt[1]
-
-    tokenizer = model.tokenizer
-    pil_images = load_pil_images(prompt)
-    prepare_inputs = processor(
-        conversations=conversation,
-        images=pil_images,
-        force_batchify=True,
-        system_prompt=instruction,
-    ).to(model.device)
-
-    # run image encoder to get the image embeddings
-    inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
-
-    # run the model to get the response
-    outputs = model.language.generate(
-        inputs_embeds=inputs_embeds,
-        attention_mask=prepare_inputs.attention_mask,
-        pad_token_id=tokenizer.eos_token_id,
-        bos_token_id=tokenizer.bos_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-        max_new_tokens=max_tokens,
-        do_sample=False,
-        use_cache=True,
-    )
-
-    answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=False)
-    return answer
-
-
-def query_molmo(model, processor, prompt: list, image_path: list, max_tokens):
+    return answer, None  
+  
+  
+def query_molmo(model, processor, prompt: list, images: list, max_tokens):
     if prompt == "multi-image":
         print("Question was multi-image, molmo does not support multi-image inputs.")
         return "multi-image detected"
     else:
+        if images is not None:
+            try:
+                images = [Image.open(images).convert("RGB").resize((224, 224))]
+            except:
+                print(images)
+                images = None
         inputs = processor.process(
-            images=[Image.open(image_path).convert("RGB").resize((224, 224))],
+            images=images,
             text=prompt,
         )
         # move inputs to the correct device and make a batch of size 1
@@ -278,7 +221,7 @@ def query_openai(client, model_name, prompt, temperature, max_tokens):
     output_text = response.choices[0].message.content.strip()
     return output_text
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+
 def query_anthropic(client, model_name, prompt, temperature, max_tokens):
 
     system_message = prompt[0]["content"]
@@ -295,77 +238,75 @@ def query_anthropic(client, model_name, prompt, temperature, max_tokens):
     return output_text
 
 
-# ERASE: should erase after 2.5 works well
-def query_qwen2(
-    model,
-    processor,
-    prompt: list,
-    image_paths: list,
-    device="cuda",
-    max_tokens=MAX_TOKENS,
+def query_aya(client, prompt, temperature, max_tokens):
+    response = client.chat(
+        model="c4ai-aya-vision-32b",
+        messages=prompt,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    output_text = response.message.content[0].text
+    return output_text
+
+
+def query_vllm(model, processor, prompt, images, max_tokens=MAX_TOKENS):
+    # Prepare the text prompt
+    # text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
+
+    sampling_params = SamplingParams(
+        max_tokens=max_tokens,
+        temperature=0.7,  # Adjust as needed
+        top_p=0.9,  # Adjust as needed
+    )
+
+    if images is not None:
+        try:
+            images = [Image.open(image).resize((512, 512)) for image in images]
+            inputs = {
+                "prompt": prompt,
+                "multi_modal_data": {"image": images},
+            }
+        except:
+            print(images)
+            images = None
+    else:
+        inputs = {"prompt": prompt}
+
+    # Generate response using vLLM
+    with torch.inference_mode():
+        outputs = model.generate(inputs, sampling_params=sampling_params)
+        response = outputs[0].outputs[0].text
+
+    return response
+
+
+def query_pangea(
+    model, processor, prompt, images, device="cuda", max_tokens=MAX_TOKENS
 ):
-    # images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
-    try:
-        images = [Image.open(image_path).convert("RGB") for image_path in image_paths]
-    except:
-        return "Image not found"
+    if images is not None:
+        try:
+            images = Image.open(images).convert("RGB").resize((512, 512))
+        except Exception as e:
+            print("Failed to load image:", e)
+            images = None
 
-    text_prompt = processor.apply_chat_template(prompt, add_generation_prompt=True)
-
-    if len(images) == 0:
-        images = None
-    inputs = processor(
-        text=[text_prompt],
-        images=images,
-        return_tensors="pt",
-        padding=True,
-    ).to(device)
-
-    # Generate response
+    model_inputs = processor(images=images, text=prompt, return_tensors="pt").to(
+        "cuda", torch.float16
+    )
     with torch.inference_mode():
-        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
-    generated_ids = [
-        output_ids[len(input_ids) :]
-        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
-    ]
-
-    response = processor.batch_decode(
-        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+        output = model.generate(
+            **model_inputs,
+            max_new_tokens=max_tokens,
+            temperature=1.0,
+            top_p=0.9,
+            do_sample=True,
+            pad_token_id=processor.tokenizer.eos_token_id,
+        )
+        output = output[0]
+    result = processor.decode(
+        output, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )
-
-    torch.cuda.empty_cache()
-    return response[0]
-
-
-def query_qwen25(model, processor, prompt: list, device="cuda", max_tokens=MAX_TOKENS):
-    text = processor.apply_chat_template(
-        prompt, tokenize=False, add_generation_prompt=True
-    )
-
-    image_inputs, video_inputs = process_vision_info(prompt)
-
-    inputs = processor(
-        text=[text],
-        images=image_inputs,
-        videos=video_inputs,
-        padding=True,
-        return_tensors="pt",
-    ).to(device)
-
-    # Generate response
-    # with torch.no_grad():
-    with torch.inference_mode():
-        output_ids = model.generate(**inputs, max_new_tokens=max_tokens)
-    generated_ids = [
-        output_ids[len(input_ids) :]
-        for input_ids, output_ids in zip(inputs.input_ids, output_ids)
-    ]
-
-    response = processor.batch_decode(
-        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
-    )
-    torch.cuda.empty_cache()
-    return response[0]
+    return result
 
 
 def generate_prompt(
@@ -373,66 +314,35 @@ def generate_prompt(
     question: dict,
     lang: str,
     instruction,
+    few_shot_samples: dict,
     method: str = "zero-shot",
+    experiment: str = 'normal'
 ):
-    if model_name == "qwen2-7b":
-        return create_qwen2_prompt(question, method)
-    if model_name == "qwen2.5-7b":
-        return parse_qwen25_input(
-            question["question"],
-            question["image"],
-            question["options"],
-            lang,
-            instruction,
-            method,
-        )
+
+    if model_name in ["qwen2-7b", "qwen2.5-7b", "qwen2.5-72b", "qwen2.5-3b"]:
+        return create_qwen_prompt_vllm(question, method, few_shot_samples, experiment)
+    elif model_name == "molmo":
+        return create_molmo_prompt_vllm(question, method, few_shot_samples)
+    elif model_name == "pangea":
+        return create_pangea_prompt(question, method, few_shot_samples)
+    elif model_name == "deepseek":
+        return create_deepseek_prompt(question, method, few_shot_samples)
+    elif model_name == "aya-vision":
+        return create_aya_prompt(question, method, few_shot_samples)
     elif model_name in [
         "gpt-4o",
-        "gpt-4o-mini",
-        "gemini-2.0-flash-exp",
         "gemini-1.5-pro",
     ]:
         return parse_openai_input(
-            question["question"],
-            question["image"],
-            question["options"],
+            question,
             lang,
             instruction,
             method,
-        )
-    elif model_name == "maya":
-        # Add Maya-specific parsing
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == "pangea":
-        return parse_pangea_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            instruction,
-            method,
-        )
-        raise NotImplementedError(f"Model {model_name} not implemented for parsing.")
-    elif model_name == "deepseekVL2-small":
-        return parse_deepseek_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            instruction,
-            method,
-        )
-    elif model_name == "molmo":
-        return parse_molmo_inputs(
-            question["question"],
-            question["image"],
-            question["options"],
-            instruction,
-            method,
+            experiment
         )
     elif model_name == "claude-3-5-sonnet-latest":
         return parse_anthropic_input(
-            question["question"],
-            question["image"],
-            question["options"],
+            question,
             lang,
             instruction,
             method,
@@ -442,13 +352,15 @@ def generate_prompt(
 
 
 def parse_openai_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
+    question, lang, instruction, few_shot_setting, experiment
 ):
     """
     Outputs: conversation dictionary supported by OpenAI.
     """
     system_message = {"role": "system", "content": instruction}
-
+    question_text = question['question']
+    question_image = question['image']
+    options_list = question['options']
     def encode_image(image_path):
         try:
             with open(image_path, "rb") as image_file:
@@ -461,16 +373,31 @@ def parse_openai_input(
 
     if question_image:
         base64_image = encode_image(question_image)
-        question = [
-            {"type": "text", "text": question_text},
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}",
-                    "detail": "low",
+        if experiment == 'captioning':
+            caption = question['image_caption']
+            ocr = question['image_ocr']
+            question = [
+                {"type": "text", "text": question_text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "low",
+                    },
                 },
-            },
-        ]
+                {"type": "text", "text": f'Caption: {caption} \n OCR: {ocr}'}
+            ]
+        else:
+            question = [
+                {"type": "text", "text": question_text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "low",
+                    },
+                }
+            ]
     else:
         question = [{"type": "text", "text": question_text}]
 
@@ -525,12 +452,15 @@ def parse_openai_input(
 
 
 def parse_anthropic_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
+    question, lang, instruction, few_shot_setting
 ):
     """
     Outputs: conversation dictionary supported by Anthropic.
     """
     system_message = {"role": "system", "content": instruction}
+    question_text = question['question']
+    question_image = question['image']
+    options_list = question['options']
 
     def resize_and_encode_image(image_path):
         try:
@@ -614,251 +544,43 @@ def parse_anthropic_input(
     return messages, None  # image paths not expected for openai client.
 
 
-def parse_deepseek_inputs(
-    question_text, question_image, options_list, instruction, few_shot_setting
-):
-    images = [question_image]
-    for option in options_list:
-        if ".png" in option:
-            images.append(option)
+# def extract_answer_from_tags(answer: str):
+#     """
+#     Searchs for the answer between tags <Answer>.
 
-    user_msg = "Question: " + question_text + "\n\n"
+#     Returns: A zero-indexed integer corresponding to the answer.
+#     """
+#     pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
+#     match = re.search(pattern, answer, re.IGNORECASE)
 
-    if question_image:
-        user_msg += "<image>"
+#     if match:
+#         # Extract and convert answer letter
+#         letter = match.group(1).upper()
+#         election = ord(letter) - ord("A")
 
-    options = "Options:\n"
-    for i, option in enumerate(options_list):
-        if ".png" in option:
-            options += chr(65 + i) + ". " + "<image>" + "\n"
-        else:
-            options += chr(65 + i) + ". " + option + "\n"
+#         # Extract reasoning by removing answer tag section
+#         start, end = match.span()
+#         reasoning = answer.strip()
+#         # Clean multiple whitespace
+#         reasoning = re.sub(r"\s+", " ", reasoning)
+#     elif len(answer) == 1:
+#         reasoning = answer
+#         if "A" <= answer <= "Z":
+#             # Convert letter to zero-indexed number
+#             election = ord(answer) - ord("A")
+#         elif "1" <= answer <= "9":
+#             # Convert digit to zero-indexed number
+#             election = int(answer) - 1
+#         else:
+#             election = answer
+#     else:
+#         # Error handling cases
+#         election = "No valid answer tag found"
+#         if re.search(r"<ANSWER>.*?</ANSWER>", answer):
+#             election = "Answer tag exists but contains invalid format"
+#         reasoning = answer.strip()
 
-    user_msg += options + "\nAnswer:"
-
-    conversation = [
-        {
-            "role": "<|User|>",
-            "content": user_msg,
-            "images": images,
-        },
-        {"role": "<|Assistant|>", "content": ""},
-    ]
-
-    return [
-        instruction,
-        conversation,
-    ], None  # image paths not expected for deepseek. Processing of images is within prompt.
-
-
-def parse_molmo_inputs(
-    question_text, question_image, options_list, instruction, few_shot_setting
-):
-    for option in options_list:
-        if ".png" in option:
-            return "multi-image", None
-
-    if instruction != "":
-        prompt = instruction + "\n\n"
-        prompt += "Question: " + question_text + "\n\n"
-    else:
-        prompt = "Question: " + question_text + "\n\n"
-
-    if question_image:
-        prompt += "<image>"
-
-    options = "Options:\n"
-    for i, option in enumerate(options_list):
-        options += chr(65 + i) + ". " + option + "\n"
-
-    prompt += options + "\nAnswer:"
-
-    return prompt, question_image
-
-
-def parse_qwen25_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
-):
-    """
-    Outputs: conversation dictionary supported by qwen2.5 .
-    """
-    system_message = {"role": "system", "content": instruction}
-
-    if question_image:
-        question = [
-            {"type": "text", "text": f"Question: {question_text}"},
-            {"type": "image", "image": f"file:///{question_image}"},
-        ]
-    else:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            }
-        ]
-
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {"type": "image", "image": "file:///{image_path}"}
-
-    images_paths = []
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):  # Checks if it is a png file
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
-            new_image_option["image"] = new_image_option["image"].format(
-                image_path=option
-            )
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            # option delimiter "1)", "2)", ...
-            parsed_options.append(new_text_option)
-            # image for option
-            parsed_options.append(new_image_option)
-
-            # Ads the image for output
-            images_paths.append(option)
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(
-                new_text_option
-            )  # Puts the option text if it isn't an image.
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    return messages, None  # image paths processed in messages by process_vision_info.
-
-
-# ERASE: should erase after 2.5 works well
-def parse_qwen2_input(
-    question_text, question_image, options_list, lang, instruction, few_shot_setting
-):
-    """
-    Outputs: conversation dictionary supported by qwen.
-    """
-    system_message = {"role": "system", "content": instruction}
-
-    if question_image:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            },
-            {"type": "image"},
-        ]
-    else:
-        question = [
-            {
-                "type": "text",
-                "text": f"Question: {question_text}",
-            }
-        ]
-
-    parsed_options = [{"type": "text", "text": "Options:\n"}]
-    only_text_option = {"type": "text", "text": "{text}"}
-    only_image_option = {"type": "image"}
-
-    images_paths = []
-    for i, option in enumerate(options_list):
-        option_indicator = f"{chr(65+i)}. "
-        if option.lower().endswith(".png"):  # Checks if it is a png file
-            # Generating the dict format of the conversation if the option is an image
-            new_image_option = only_image_option.copy()
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(text=option_indicator + "\n")
-            new_text_option["text"] = formated_text
-
-            # option delimiter "1)", "2)", ...
-            parsed_options.append(new_text_option)
-            # image for option
-            parsed_options.append(new_image_option)
-
-            # Ads the image for output
-            images_paths.append(option)
-
-        else:
-            # Generating the dict format of the conversation if the option is not an image
-            new_text_option = only_text_option.copy()
-            formated_text = new_text_option["text"].format(
-                text=option_indicator + option + "\n"
-            )
-            new_text_option["text"] = formated_text
-            parsed_options.append(
-                new_text_option
-            )  # Puts the option text if it isn't an image.
-
-    user_text = question + parsed_options
-    user_message = {"role": "user", "content": user_text}
-
-    # Enable few-shot setting
-    if few_shot_setting == "few-shot":
-        user_message["content"] = (
-            fetch_few_shot_examples(lang) + user_message["content"]
-        )
-        messages = [system_message, user_message]
-    elif few_shot_setting == "zero-shot":
-        messages = [system_message, user_message]
-    else:
-        raise ValueError(f"Invalid few_shot_setting: {few_shot_setting}")
-
-    if question_image:
-        images_paths = [question_image] + images_paths
-
-    return messages, images_paths
-
-
-def format_answer(answer: str):
-    """
-    Searchs for the answer between tags <Answer>.
-
-    Returns: A zero-indexed integer corresponding to the answer.
-    """
-    pattern = r"<ANSWER>\s*([A-Za-z])\s*</ANSWER>"
-    match = re.search(pattern, answer, re.IGNORECASE)
-
-    if match:
-        # Extract and convert answer letter
-        letter = match.group(1).upper()
-        election = ord(letter) - ord("A")
-
-        # Extract reasoning by removing answer tag section
-        start, end = match.span()
-        reasoning = (answer[:start] + answer[end:]).strip()
-        # Clean multiple whitespace
-        reasoning = re.sub(r"\s+", " ", reasoning)
-    else:
-        # Error handling cases
-        election = "No valid answer tag found"
-        if re.search(r"<ANSWER>.*?</ANSWER>", answer):
-            election = "Answer tag exists but contains invalid format"
-        reasoning = answer.strip()
-
-    return reasoning, election
-
-
-def parse_pangea_inputs(question):
-    return messages, image_paths
+#     return reasoning, election
 
 
 def fetch_cot_instruction(lang: str) -> str:
